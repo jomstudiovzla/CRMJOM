@@ -1,0 +1,84 @@
+.playbook-viewer {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 20px;
+  min-height: 600px;
+}
+
+.playbook-sidebar {
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.playbook-sidebar h2 {
+  font-size: 18px;
+  margin-bottom: 4px;
+}
+
+.playbook-hint {
+  font-size: 12px;
+  color: var(--color-text-variant);
+  margin-bottom: 16px;
+}
+
+.playbook-sidebar ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.playbook-sidebar button {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--color-text-variant);
+  padding: 10px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.playbook-sidebar button:hover,
+.playbook-sidebar button.active {
+  background: var(--theme-primary-alpha);
+  color: var(--theme-primary);
+  border-color: rgba(0, 242, 255, 0.2);
+}
+
+.playbook-content {
+  padding: 24px;
+  overflow: auto;
+}
+
+.playbook-content header {
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-outline);
+}
+
+.playbook-path {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--color-text-variant);
+}
+
+.playbook-content pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-text);
+}
+
+.playbook-empty,
+.playbook-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--color-text-variant);
+  font-family: 'JetBrains Mono', monospace;
+}

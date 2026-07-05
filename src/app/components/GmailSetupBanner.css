@@ -1,0 +1,66 @@
+.gmail-setup-banner {
+  display: flex;
+  gap: 16px;
+  padding: 18px 20px;
+  margin-bottom: 16px;
+  border-radius: 10px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  backdrop-filter: blur(12px);
+}
+
+.gmail-setup-banner.compact {
+  padding: 14px 16px;
+}
+
+.gmail-setup-banner.compact .gsb-steps,
+.gmail-setup-banner.compact .gsb-env {
+  display: none;
+}
+
+.gsb-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+}
+
+.gsb-body h4 {
+  margin: 0 0 8px;
+  color: #fbbf24;
+  font-size: 15px;
+}
+
+.gsb-body p {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-variant);
+}
+
+.gsb-steps {
+  margin: 0 0 12px 18px;
+  padding: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--color-text);
+}
+
+.gsb-steps a {
+  color: var(--theme-primary);
+}
+
+.gsb-env {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--color-outline);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: #a5f3fc;
+  white-space: pre-wrap;
+}
+
+.gsb-gemini {
+  margin-top: 8px !important;
+  font-size: 12px !important;
+}

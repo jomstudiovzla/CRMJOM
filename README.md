@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CRM Home — Portal JOM Studio
 
-## Getting Started
+Portal web para operar el playbook: dashboard, leads y **comunicaciones estilo Gmail**.
 
-First, run the development server:
+## Inicio rápido
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abre http://localhost:3000
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## Pestañas
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Tab | Función |
+|-----|---------|
+| Dashboard | KPIs y funnel CAMP-01 |
+| **Comunicaciones** | Inbox Gmail — enviar emails a leads |
+| Leads | Tabla + marcar estados |
+| Playbook | Documentación integrada |
 
-## Learn More
+## Gmail integrado
 
-To learn more about Next.js, take a look at the following resources:
+1. Copia `.env.local.example` → `.env.local`
+2. Añade `GMAIL_USER` y `GMAIL_APP_PASSWORD` (contraseña de aplicación Google)
+3. Reinicia `npm run dev`
+4. Comunicaciones → selecciona lead → Enviar
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Sin `.env.local`: abre tu cliente de correo con mensaje prellenado (mailto).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Guía completa: [../ejecutar/SETUP-GMAIL-CRM.md](../ejecutar/SETUP-GMAIL-CRM.md)
 
-## Deploy on Vercel
+## APIs
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `GET /api/leads` — CSV + JSON enriquecido
+- `POST /api/leads/update` — actualizar estado pipeline
+- `POST /api/email/send` — enviar + guardar historial
+- `GET /api/email/threads` — conversaciones por lead
+- `GET /api/email/status` — Gmail conectado o mailto
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Datos
+
+Lee/escribe en `../ejecutar/` (CSV leads, threads JSON).

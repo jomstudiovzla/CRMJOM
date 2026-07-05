@@ -1,0 +1,377 @@
+.email-mailbox {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mailbox-status {
+  padding: 12px 20px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mailbox-status code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot.connected {
+  background: var(--success);
+  box-shadow: 0 0 8px var(--success);
+}
+
+.status-dot.mailto {
+  background: var(--warning);
+}
+
+.mailbox-layout {
+  display: grid;
+  grid-template-columns: 200px 280px 1fr;
+  min-height: 620px;
+  overflow: hidden;
+}
+
+.mailbox-sidebar {
+  border-right: 1px solid var(--border-glass);
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.compose-btn {
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  padding: 12px 16px;
+  border-radius: 24px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 14px var(--accent-glow);
+}
+
+.mailbox-sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mailbox-sidebar nav button {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+}
+
+.mailbox-sidebar nav button.active,
+.mailbox-sidebar nav button:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+
+.mailbox-sidebar nav button span {
+  opacity: 0.6;
+  font-size: 12px;
+}
+
+.mailbox-list {
+  border-right: 1px solid var(--border-glass);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.list-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.list-header h3 {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.list-items {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.list-item {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-glass);
+  padding: 14px 16px;
+  cursor: pointer;
+  color: inherit;
+  position: relative;
+}
+
+.list-item:hover,
+.list-item.active {
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.list-item.sent .item-top strong {
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+.item-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.item-top strong {
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.item-badge {
+  font-size: 10px;
+  text-transform: uppercase;
+  background: rgba(99, 102, 241, 0.3);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.item-email {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.item-preview {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 6px;
+  opacity: 0.7;
+}
+
+.item-new {
+  position: absolute;
+  top: 14px;
+  right: 8px;
+  font-size: 10px;
+  background: var(--accent-color);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.list-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.mailbox-main {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.main-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-glass);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.main-header h2 {
+  font-size: 18px;
+}
+
+.main-header p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.main-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.gap-banner {
+  margin: 12px 24px 0;
+  padding: 12px 16px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.thread-history {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border-glass);
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.thread-history h4 {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+.thread-msg {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.msg-meta {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 6px;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+
+.msg-status {
+  text-transform: uppercase;
+  font-size: 10px;
+}
+
+.thread-msg pre {
+  white-space: pre-wrap;
+  font-family: inherit;
+  color: var(--text-secondary);
+}
+
+.compose-form {
+  padding: 20px 24px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  align-items: center;
+  gap: 12px;
+}
+
+.field-row label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.field-row input,
+.field-row textarea {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-glass);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  width: 100%;
+}
+
+.field-row textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.body-row {
+  align-items: start;
+}
+
+.body-row label {
+  padding-top: 10px;
+}
+
+.feedback {
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.feedback-success {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.feedback-error {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.feedback-info {
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.compose-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+}
+
+.main-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  padding: 40px;
+}
+
+.main-empty p:first-child {
+  font-size: 24px;
+  color: var(--text-primary);
+}
+
+.main-empty .hint {
+  font-size: 14px;
+}
+
+@media (max-width: 900px) {
+  .mailbox-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto 1fr;
+  }
+
+  .mailbox-sidebar nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}

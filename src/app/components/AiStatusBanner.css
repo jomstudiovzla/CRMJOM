@@ -1,0 +1,54 @@
+.ai-status-banner {
+  display: flex;
+  gap: 16px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(59, 130, 246, 0.08) 100%);
+  border: 1px solid rgba(168, 85, 247, 0.25);
+  border-radius: 12px;
+  animation: asb-fade-in 0.4s ease;
+}
+
+.asb-icon {
+  font-size: 1.6rem;
+  flex-shrink: 0;
+}
+
+.asb-body h4 {
+  margin: 0 0 6px 0;
+  color: #e9d5ff;
+  font-size: 0.95rem;
+}
+
+.asb-body p {
+  margin: 0 0 10px 0;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.asb-env {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  color: #4ade80;
+  margin: 0 0 10px 0;
+}
+
+.asb-link {
+  color: #93c5fd;
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.asb-link:hover {
+  color: #bfdbfe;
+  text-decoration: underline;
+}
+
+@keyframes asb-fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}

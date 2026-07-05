@@ -1,0 +1,15 @@
+name: CRM 4-Hour Sync
+
+on:
+  schedule:
+    - cron: '0 */4 * * *' # Cada 4 horas
+  workflow_dispatch: # Permite ejecutarlo manualmente desde GitHub
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Scrape (Upwork)
+        run: curl -X POST "${{ secrets.PROD_URL }}/api/leads/scrape" || true
+      - name: Trigger Email Sync (Gmail & Gemini)
+        run: curl -X GET "${{ secrets.PROD_URL }}/api/email/sync" || true

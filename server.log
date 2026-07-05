@@ -1,0 +1,18 @@
+
+> crm-home@0.1.0 dev
+> next dev -p 3005
+
+▲ Next.js 16.2.10 (Turbopack)
+- Local:         http://localhost:3005
+- Network:       http://192.168.10.205:3005
+- Environments: .env.local
+✓ Ready in 268ms
+⨯ Another next dev server is already running.
+
+- Local:        http://localhost:3000
+- PID:          4136
+- Dir:          /Users/macbook/Documents/Yo/CRM JOM/crm-home
+- Log:          .next/dev/logs/next-development.log
+
+Run kill 4136 to stop it.
+[?25h

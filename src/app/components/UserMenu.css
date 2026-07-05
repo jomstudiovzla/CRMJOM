@@ -1,0 +1,106 @@
+.user-menu {
+  position: relative;
+}
+
+.user-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-glass);
+  border-radius: 24px;
+  padding: 4px 12px 4px 4px;
+  cursor: pointer;
+  color: inherit;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+.user-avatar-fallback {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.user-name {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.pro-pill {
+  font-size: 9px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #000;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.user-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+
+.user-dropdown {
+  position: absolute;
+  left: calc(100% + 16px);
+  bottom: 0;
+  min-width: 240px;
+  padding: 16px;
+  z-index: 50;
+  opacity: 0;
+  transform: translateX(-10px);
+  animation: slideRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideRight {
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.dropdown-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.dropdown-header span {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.role-tag {
+  font-size: 11px !important;
+  color: #fbbf24 !important;
+}
+
+.logout-btn {
+  width: 100%;
+  padding: 10px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.logout-btn:hover {
+  background: rgba(239, 68, 68, 0.25);
+}
