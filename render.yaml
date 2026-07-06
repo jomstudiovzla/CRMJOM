@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: crm-jom
+    env: docker
+    region: ohio
+    plan: free
+    branch: main
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: NODE_ENV
+        value: production
+      # Las demás variables (GEMINI_API_KEY, GMAIL_USER, GMAIL_APP_PASSWORD, etc)
+      # se deben inyectar directamente en el panel de Render por seguridad.

@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.gitignore
+.vercel
+Dockerfile
+render.yaml
+README.md
+AGENTS.md
+CLAUDE.md
+*.log
+.env
+.env.local
+.env.*
