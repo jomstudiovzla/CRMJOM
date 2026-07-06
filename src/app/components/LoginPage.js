@@ -50,7 +50,7 @@ async function handleGoogleUser(user, setLocalError, setLoading) {
     return false;
   }
   await createServerSession(user);
-  window.location.href = '/';
+  window.location.replace('/?tab=company');
   return true;
 }
 
@@ -106,12 +106,25 @@ export default function LoginPage() {
       return;
     }
 
+    const useRedirect =
+      typeof window !== 'undefined' &&
+      (window.location.hostname.includes('vercel.app') ||
+        window.location.hostname !== 'localhost');
+
     try {
+      if (useRedirect) {
+        await signInWithRedirect(auth, googleProvider);
+        return;
+      }
+
       const result = await signInWithPopup(auth, googleProvider);
       await handleGoogleUser(result.user, setLocalError, setLoading);
     } catch (err) {
       console.error(err);
-      const popupBlocked = err.code === 'auth/popup-blocked' || err.code === 'auth/popup-closed-by-user';
+      const popupBlocked =
+        err.code === 'auth/popup-blocked' ||
+        err.code === 'auth/popup-closed-by-user' ||
+        err.code === 'auth/cancelled-popup-request';
 
       if (popupBlocked) {
         try {

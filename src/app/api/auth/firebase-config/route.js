@@ -26,9 +26,12 @@ function buildHints({ firebaseReady, sessionReady, appUrl }) {
   if (!sessionReady) {
     hints.push('Añade SESSION_SECRET (mín. 32 caracteres) en Vercel');
   }
-  // Only show localhost hint — never show preview-URL hints that confuse the user
   if (appUrl.includes('localhost')) {
     hints.push('En producción define NEXT_PUBLIC_APP_URL=https://crmjom.vercel.app');
+  }
+  if (appUrl.includes('vercel.app')) {
+    const host = appUrl.replace(/^https?:\/\//, '');
+    hints.push(`Firebase → Authorized domains: añade "${host}" si el login falla`);
   }
   return hints;
 }

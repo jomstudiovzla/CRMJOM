@@ -3,6 +3,8 @@ import { getSession } from '@/lib/requireAdmin';
 import { ADMIN_EMAIL } from '@/lib/session';
 import { verifyFirebaseIdToken } from '@/lib/verifyFirebaseToken';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request) {
   try {
     const body = await request.json();
