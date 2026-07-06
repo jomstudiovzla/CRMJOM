@@ -3,7 +3,7 @@ import { updateLeadState } from './leadsStore';
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export async function autoContactComputrabajo(lead, username, password) {
+export async function autoContactComputrabajo(lead, username, password, headlessOverride = false) {
   if (!lead.link) throw new Error('El lead no tiene un enlace de postulación.');
   if (!username || !password) throw new Error('Credenciales de Computrabajo no configuradas.');
 
@@ -11,12 +11,12 @@ export async function autoContactComputrabajo(lead, username, password) {
   const urlObj = new URL(lead.link);
   const domain = urlObj.hostname;
 
-  console.log(`[Autocontact] Iniciando Puppeteer para Computrabajo en ${domain}`);
+  console.log(`[Autocontact] Iniciando Puppeteer para Computrabajo en ${domain} (Headless: ${headlessOverride})`);
 
   const browser = await puppeteer.launch({
-    headless: false, // Visible para resolver Captchas en el login la primera vez
+    headless: headlessOverride ? 'new' : false, // Usar modo headless para ejecuciones automáticas en segundo plano
     defaultViewport: null,
-    args: ['--start-maximized']
+    args: headlessOverride ? [] : ['--start-maximized']
   });
 
   const page = await browser.newPage();

@@ -5,6 +5,7 @@ import Parser from 'rss-parser';
 import { getAllScraperQueries } from '@/lib/nichos';
 import { appendEnrichedLeads } from '@/lib/leadsStore';
 import { checkPhase2Env } from '@/lib/envCheck';
+import { autoContactComputrabajo } from '@/lib/autoContactComputrabajo';
 
 const parser = new Parser({
   headers: {
@@ -187,6 +188,24 @@ export async function GET() {
     }
 
     const added = appendEnrichedLeads(newLeads);
+
+    // Disparar auto-aplicación en segundo plano de manera no bloqueante para Computrabajo
+    const user = process.env.COMPUTRABAJO_USER;
+    const pass = process.env.COMPUTRABAJO_PASS;
+    if (user && pass) {
+      const addedCtLeads = added.filter(l => l.link && l.link.includes('computrabajo'));
+      for (const lead of addedCtLeads) {
+        (async () => {
+          try {
+            console.log(`[Background Auto-Apply] Postulándose de forma silenciosa para: ${lead.nombre_negocio}`);
+            // Usamos headless: true (silencioso) para no irrumpir en el escritorio del usuario
+            await autoContactComputrabajo(lead, user, pass, true);
+          } catch(err) {
+            console.error(`[Background Auto-Apply Error] ${lead.nombre_negocio}:`, err.message);
+          }
+        })();
+      }
+    }
 
     if (global.io) {
       global.io.emit('leads_updated');
