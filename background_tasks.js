@@ -16,9 +16,9 @@ module.exports = function initBackgroundTasks(httpServer) {
     console.log('[Socket.io] Cliente conectado:', socket.id);
   });
 
-  // 2. Tarea de fondo: Scraper de Upwork (cada 4 horas)
-  cron.schedule('0 */4 * * *', async () => {
-    console.log('[Cron] Ejecutando scraper de Upwork de fondo...');
+  // 2. Tarea de fondo: Scraper de Upwork, LinkedIn y Computrabajo (cada 10 minutos)
+  cron.schedule('*/10 * * * *', async () => {
+    console.log('[Cron] Ejecutando scraper masivo de fondo...');
     try {
       // Llamamos al API de Next.js internamente
       await fetch(`${localBase}/api/scraper`, {
