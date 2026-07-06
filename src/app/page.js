@@ -42,7 +42,7 @@ export default function Home() {
 
   const triggerEmailSync = useCallback(async () => {
     try {
-      await fetch('/api/email/sync', { method: 'POST' });
+      await fetch('/api/email/sync');
       setEmailSyncTs(Date.now()); // notifica a MailsViewer que recargue
     } catch (err) {
       console.warn('[JOM] emailSync error:', err.message);
