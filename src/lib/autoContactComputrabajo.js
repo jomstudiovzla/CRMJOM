@@ -1,180 +1,202 @@
 import puppeteer from 'puppeteer';
+import path from 'path';
+import fs from 'fs';
 import { updateLeadState } from './leadsStore';
 import { GoogleGenAI } from '@google/genai';
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export async function autoContactComputrabajo(lead, username, password, headlessOverride = false) {
-  if (!lead.link) throw new Error('El lead no tiene un enlace de postulación.');
-  if (!username || !password) throw new Error('Credenciales de Computrabajo no configuradas.');
+// Perfil de Chrome persistente — guarda la sesión Google/Computrabajo entre ejecuciones
+const CHROME_PROFILE_DIR = path.resolve(process.cwd(), '../ejecutar/config/chrome-profile-computrabajo');
+const LOGIN_URL = 'https://candidato.co.computrabajo.com/acceso/';
+const HOME_URL  = 'https://co.computrabajo.com/';
 
-  // Extraer dominio del link (ej. co.computrabajo.com)
-  const urlObj = new URL(lead.link);
-  const domain = urlObj.hostname;
+/** Verifica si ya hay sesión activa usando el perfil guardado */
+async function isAlreadyLoggedIn(page) {
+  try {
+    await page.goto(HOME_URL, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await delay(2000);
+    return await page.evaluate(() => {
+      const sels = ['a[href*="/candidato/"]','.user-menu','.avatar','[data-qa="user-name"]','a[href*="/mi-cuenta"]','.logged-user'];
+      return sels.some(sel => document.querySelector(sel) !== null);
+    });
+  } catch { return false; }
+}
 
-  console.log(`[Autocontact] Iniciando Puppeteer para Computrabajo en ${domain} (Headless: ${headlessOverride})`);
+/**
+ * Login con "Continuar con Google".
+ * Si el perfil Chrome ya tiene sesión Google activa → fluye solo.
+ * Si no → abre navegador visible y espera hasta 120s para que el usuario apruebe.
+ */
+async function loginViaGoogle(page, browser) {
+  console.log('[CT Bot] Abriendo página de login...');
+  await page.goto(LOGIN_URL, { waitUntil: 'networkidle2', timeout: 20000 });
+  await delay(1500);
+
+  // Buscar botón Google por selector
+  let googleBtn = null;
+  for (const sel of ['a[href*="google"]','button[class*="google"]','[data-provider="google"]','.btn-google']) {
+    googleBtn = await page.$(sel);
+    if (googleBtn) { console.log(`[CT Bot] Botón Google encontrado con: ${sel}`); break; }
+  }
+  // Fallback: buscar por texto
+  if (!googleBtn) {
+    for (const el of await page.$$('a, button')) {
+      const t = await page.evaluate(e => e.textContent?.toLowerCase() || '', el);
+      if (t.includes('google')) { googleBtn = el; break; }
+    }
+  }
+  if (!googleBtn) throw new Error('[CT Bot] No se encontró el botón "Continuar con Google".');
+
+  console.log('[CT Bot] Clic en "Continuar con Google"...');
+
+  // Manejar popup o redirección en misma pestaña
+  const popupPromise = new Promise(resolve => {
+    const t = setTimeout(() => resolve(null), 4000);
+    browser.once('targetcreated', async target => {
+      clearTimeout(t);
+      resolve(target.type() === 'page' ? await target.page() : null);
+    });
+  });
+
+  await googleBtn.click();
+  const popup = await popupPromise;
+
+  if (popup) {
+    console.log('[CT Bot] Popup Google detectado. Esperando login (máx 120s)...');
+    await popup.waitForNavigation({ waitUntil: 'networkidle2', timeout: 120000 }).catch(() => {});
+  } else {
+    console.log('[CT Bot] Redirección en misma pestaña. Esperando (máx 120s)...');
+    await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 120000 }).catch(() => {});
+  }
+  await delay(3000);
+
+  if (await isAlreadyLoggedIn(page)) {
+    console.log('[CT Bot] ✅ Login Google exitoso. Sesión guardada en perfil persistente.');
+  } else {
+    console.warn('[CT Bot] ⚠️  No se confirmó el login. Continuando de todas formas...');
+  }
+}
+
+/**
+ * Función principal: auto-postulación en Computrabajo vía Google OAuth.
+ * @param {object} lead            - Lead con { nombre_negocio, link, gap_detectado, nicho }
+ * @param {string} _username       - Ignorado (se usa Google OAuth)
+ * @param {string} _password       - Ignorado (se usa Google OAuth)
+ * @param {boolean} headlessOverride - true para correr sin ventana en segundo plano
+ */
+export async function autoContactComputrabajo(lead, _username, _password, headlessOverride = false) {
+  if (!lead.link) throw new Error('El lead no tiene un enlace de postulación (link).');
+
+  if (!fs.existsSync(CHROME_PROFILE_DIR)) {
+    fs.mkdirSync(CHROME_PROFILE_DIR, { recursive: true });
+    console.log(`[CT Bot] Creado perfil persistente: ${CHROME_PROFILE_DIR}`);
+  }
+
+  console.log(`[CT Bot] Lanzando Chrome (headless=${headlessOverride})...`);
 
   const browser = await puppeteer.launch({
-    headless: headlessOverride ? 'new' : false, // Usar modo headless para ejecuciones automáticas en segundo plano
+    headless: headlessOverride ? 'new' : false,
+    userDataDir: CHROME_PROFILE_DIR,
     defaultViewport: null,
-    args: headlessOverride ? [] : ['--start-maximized']
+    args: ['--no-sandbox','--disable-setuid-sandbox','--disable-blink-features=AutomationControlled','--disable-infobars',...(headlessOverride ? [] : ['--start-maximized'])],
+    ignoreDefaultArgs: ['--enable-automation'],
   });
 
   const page = await browser.newPage();
+  await page.evaluateOnNewDocument(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+  });
 
   try {
-    // 1. Ir al portal de Computrabajo (evita redirecciones directas al home)
-    const portalUrl = `https://${domain}/`;
-    await page.goto(portalUrl, { waitUntil: 'networkidle2' });
+    // ── PASO 1: Login ─────────────────────────────────────────────────────
+    if (await isAlreadyLoggedIn(page)) {
+      console.log('[CT Bot] ✅ Sesión activa. Saltando login.');
+    } else {
+      console.log('[CT Bot] Sin sesión. Iniciando Google OAuth...');
+      await loginViaGoogle(page, browser);
+    }
 
-    // Aceptar cookies si aparece
-    try {
-      const cookieButtons = await page.$$('button, a');
-      for (const btn of cookieButtons) {
-        const text = await page.evaluate(el => el.textContent?.trim().toLowerCase(), btn);
-        if (text.includes('acepto') || text.includes('aceptar') || text.includes('entendido')) {
-          await btn.click();
-          await delay(1000);
-          break;
+    // ── PASO 2: Navegar a la oferta ───────────────────────────────────────
+    console.log(`[CT Bot] Navegando a: ${lead.link}`);
+    await page.goto(lead.link, { waitUntil: 'networkidle2', timeout: 20000 });
+    await delay(2000);
+
+    // ── PASO 3: Clic en "Aplicar" ─────────────────────────────────────────
+    let applyBtnClicked = false;
+    for (const sel of ['.js-btn-apply','#btn-apply','a[href*="aplicar"]','a[href*="postular"]','button.btn-apply']) {
+      const btn = await page.$(sel);
+      if (btn) { await btn.click(); applyBtnClicked = true; console.log(`[CT Bot] Botón aplicar: ${sel}`); break; }
+    }
+    if (!applyBtnClicked) {
+      for (const btn of await page.$$('a, button')) {
+        const t = await page.evaluate(el => el.textContent?.toLowerCase() || '', btn);
+        if (t.includes('aplicar') || t.includes('postularme') || t.includes('postular') || t.includes('inscribirme')) {
+          await btn.click(); applyBtnClicked = true;
+          console.log(`[CT Bot] Botón aplicar por texto: "${t.trim()}"`); break;
         }
       }
-    } catch (e) {}
-
-    // Intentar ir a la página de login dando click al botón "Login" o "Ingresar"
-    let loginClicked = false;
-    const navButtons = await page.$$('a, button');
-    for (const btn of navButtons) {
-      const text = await page.evaluate(el => el.textContent?.trim().toLowerCase(), btn);
-      if (text === 'login' || text === 'ingresar' || text === 'iniciar sesión') {
-        await btn.click();
-        loginClicked = true;
-        break;
-      }
     }
-
-    if (!loginClicked) {
-      // Si falló el clic, intentamos ir al subdominio de candidato
-      await page.goto(`https://${domain}/candidato/`, { waitUntil: 'networkidle2' });
-    } else {
-      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 15000 }).catch(() => {});
-    }
-
-    // Rellenar email
-    const emailSelector = 'input[type="email"], input[name*="mail"], #LoginModel_Email, #Username';
-    await page.waitForSelector(emailSelector, { timeout: 15000 });
-    await page.type(emailSelector, username, { delay: 50 });
-
-    // Rellenar password
-    const passSelector = 'input[type="password"], input[name*="pass"], #LoginModel_Password, #Password';
-    await page.waitForSelector(passSelector, { timeout: 5000 });
-    await page.type(passSelector, password, { delay: 50 });
-
-    // Click ingresar
-    const submitBtn = 'button[type="submit"], #btnIngresar, button.btn-primary';
-    await page.click(submitBtn);
-
-    // Esperar a que loguee
-    await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 20000 });
+    if (!applyBtnClicked) throw new Error('[CT Bot] No se encontró botón de aplicar.');
     await delay(3000);
 
-    // 2. Ir a la oferta de trabajo
-    await page.goto(lead.link, { waitUntil: 'networkidle2' });
+    // ── PASO 4: Carta generada por Gemini ─────────────────────────────────
+    let appliedPitch = `Postulación automática para ${lead.nombre_negocio}.`;
 
-    // 3. Buscar y hacer clic en el botón "Aplicar"
-    const applySelector = '.js-btn-apply, button, a';
-    const buttons = await page.$$(applySelector);
-    let applyBtnClicked = false;
-    let appliedPitch = 'Postulación rápida en Computrabajo.';
-
-    for (const btn of buttons) {
-      const text = await page.evaluate(el => el.textContent, btn);
-      if (text.toLowerCase().includes('aplicar')) {
-        await btn.click();
-        applyBtnClicked = true;
-        break;
-      }
-    }
-
-    if (!applyBtnClicked) {
-      throw new Error('No se encontró el botón de "Aplicar" en la página.');
-    }
-
-    await delay(3000); // Esperar transiciones de postulación
-
-    // 4. Escribir carta de presentación si la requiere
-    const textareaSelector = 'textarea';
-    const textareas = await page.$$(textareaSelector);
+    const textareas = await page.$$('textarea');
     if (textareas.length > 0) {
-      console.log('[Autocontact] Generando propuesta hiper-personalizada con Gemini...');
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const prompt = `Redacta una postulación y propuesta de valor de desarrollo y diseño web para el cliente "${lead.nombre_negocio}".
-Detalles de la oferta/empresa: "${lead.gap_detectado || ''}".
-Nicho del cliente: "${lead.nicho || ''}".
+      console.log('[CT Bot] Campo de carta detectado. Generando con Gemini...');
+      try {
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const resp = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: `Redacta una carta de presentación (máx 120 palabras) para postularme a una oferta en "${lead.nombre_negocio}". Contexto: "${lead.gap_detectado || lead.descripcion || ''}". Nicho: "${lead.nicho || ''}". Soy Jesús Omar Martínez, Creative Director de JOM Studio (web premium, e-commerce, WebGL, branding). Directo, profesional, sin emojis excesivos. Firma: "Jesús Omar Martínez — JOM Studio".`,
+        });
+        appliedPitch = resp.text?.trim() || appliedPitch;
+        console.log('[CT Bot] ✅ Propuesta Gemini generada.');
+      } catch (e) { console.warn('[CT Bot] Gemini falló, usando texto genérico:', e.message); }
 
-La propuesta debe ser de parte de Jesús Omar Martínez, Creative Director de JOM Studio (desarrollo creativo web premium, alta gama, e-commerce, WebGL).
-Debe:
-1. Ser corta, directa y persuasiva para canales de chat (máximo 120 palabras).
-2. Explicar específicamente por qué les escribimos basado en su oferta/brecha tecnológica.
-3. Indicar por qué podemos trabajar juntos y cómo nuestra experiencia premium aporta valor real.
-4. Firmar como Jesús Omar Martínez, Creative Director de JOM Studio.
-Usa tono profesional pero atrevido y directo, sin emojis excesivos.`;
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-      });
-
-      appliedPitch = response.text?.trim() || 'Hola, vi su oferta...';
-      
-      await page.type(textareaSelector, appliedPitch, { delay: 10 });
+      await textareas[0].click();
+      await textareas[0].evaluate(el => { el.value = ''; });
+      await page.type('textarea', appliedPitch, { delay: 8 });
       await delay(1000);
-      
-      // Enviar
-      const finalButtons = await page.$$('button');
-      for (const btn of finalButtons) {
-        const text = await page.evaluate(el => el.textContent, btn);
-        if (text.toLowerCase().includes('enviar') || text.toLowerCase().includes('postular') || text.toLowerCase().includes('continuar')) {
-          await btn.click();
-          break;
+
+      for (const btn of await page.$$('button, input[type="submit"]')) {
+        const t = await page.evaluate(el => (el.textContent || el.value || '').toLowerCase(), btn);
+        if (t.includes('enviar') || t.includes('postular') || t.includes('continuar') || t.includes('finalizar')) {
+          await btn.click(); console.log('[CT Bot] ✅ Formulario enviado.'); break;
         }
       }
     }
 
     await delay(4000);
 
-    // Actualizar estado
+    // ── PASO 5: Registrar en CRM ──────────────────────────────────────────
     await updateLeadState(lead.nombre_negocio, 'contactado', {
       fecha_contacto: new Date().toISOString(),
-      origen: 'Computrabajo Auto-Contact'
+      origen: 'Computrabajo Auto-Contact (Google OAuth)',
     });
 
-    // Guardar registro sintético en el módulo de correos
     try {
       const { upsertMessage } = require('./emailStore');
       upsertMessage(lead, {
         id: `auto_ct_${Date.now()}`,
         subject: `🤖 Auto-Postulado: ${lead.nombre_negocio || 'Vacante'}`,
-        body: `Postulación completada de forma 100% automática en Computrabajo.\n\nPropuesta enviada:\n\n${appliedPitch}`,
+        body: `✅ Postulación automática completada en Computrabajo.\n\n📝 Propuesta:\n\n${appliedPitch}`,
         sentAt: new Date().toISOString(),
         direction: 'outbound',
         status: 'sent',
-        from: 'Auto-Postulador'
+        from: 'Auto-Postulador JOM',
       });
-      if (global.io) {
-        global.io.emit('emails_updated');
-      }
-    } catch (e) {
-      console.error('[Autocontact] Error guardando registro de correo de postulación:', e.message);
-    }
+    } catch (e) { console.warn('[CT Bot] emailStore:', e.message); }
 
-    if (global.io) {
-      global.io.emit('leads_updated');
-    }
+    if (global.io) { global.io.emit('leads_updated'); global.io.emit('emails_updated'); }
 
+    console.log('[CT Bot] 🎉 Postulación completada con éxito!');
     return { success: true, message: '¡Postulación completada con éxito!' };
 
   } catch (err) {
-    console.error('[Autocontact] Error durante el proceso:', err.message);
+    console.error('[CT Bot] ❌ Error:', err.message);
     throw err;
   } finally {
     await delay(2000);
