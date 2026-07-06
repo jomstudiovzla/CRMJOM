@@ -10,14 +10,19 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
+export function isFirebaseConfigured() {
+  return Boolean(firebaseConfig.apiKey?.trim() && firebaseConfig.authDomain?.trim());
+}
+
 let app;
 let auth;
 let googleProvider;
 
-if (firebaseConfig.apiKey && firebaseConfig.apiKey.length > 0) {
+if (isFirebaseConfigured()) {
   app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
   auth = getAuth(app);
   googleProvider = new GoogleAuthProvider();
+  googleProvider.setCustomParameters({ prompt: 'select_account' });
 }
 
-export { app, auth, googleProvider };
+export { app, auth, googleProvider, firebaseConfig };

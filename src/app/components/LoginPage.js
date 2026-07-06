@@ -1,11 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
-import { auth, googleProvider } from '@/lib/firebase';
-import { signInWithPopup, signOut } from 'firebase/auth';
+import { auth, googleProvider, isFirebaseConfigured } from '@/lib/firebase';
+import {
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  signOut,
+} from 'firebase/auth';
 import './LoginPage.css';
+
+const ADMIN_EMAIL = 'jomstudiovzla@gmail.com';
 
 const ERRORS = {
   not_admin: 'Solo jomstudiovzla@gmail.com puede acceder como administrador.',
@@ -13,55 +20,115 @@ const ERRORS = {
   auth_failed: 'Error al conectar con Google. Revisa las credenciales OAuth.',
 };
 
+const FIREBASE_ERRORS = {
+  'auth/invalid-api-key': 'Firebase API Key inválida — redeploy en Vercel tras pegar las variables.',
+  'auth/unauthorized-domain': 'Dominio no autorizado en Firebase. Añade tu URL de Vercel en Authorized domains.',
+  'auth/popup-blocked': 'Popup bloqueado — reintentando con redirección…',
+  'auth/popup-closed-by-user': 'Ventana cerrada. Intenta de nuevo.',
+  'auth/cancelled-popup-request': 'Espera a que termine el intento anterior.',
+};
+
+async function createServerSession(user) {
+  const idToken = await user.getIdToken();
+  const res = await fetch('/api/auth/firebase-login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idToken }),
+    credentials: 'include',
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error || 'Error al crear sesión en el servidor');
+  }
+}
+
+async function handleGoogleUser(user, setLocalError, setLoading) {
+  if (user.email?.toLowerCase() !== ADMIN_EMAIL) {
+    await signOut(auth);
+    setLocalError('Acceso denegado. Solo jomstudiovzla@gmail.com tiene permisos de Admin.');
+    setLoading(false);
+    return false;
+  }
+  await createServerSession(user);
+  window.location.href = '/';
+  return true;
+}
+
 export default function LoginPage() {
   const searchParams = useSearchParams();
   const errorKey = searchParams.get('error');
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState('');
+  const [setupHints, setSetupHints] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch('/api/auth/firebase-config');
+        const data = await res.json();
+        if (!cancelled && data.hints?.length) {
+          setSetupHints(data.hints);
+        }
+      } catch {
+        /* ignore */
+      }
+
+      if (!auth || cancelled) return;
+
+      try {
+        const result = await getRedirectResult(auth);
+        if (result?.user && !cancelled) {
+          setLoading(true);
+          await handleGoogleUser(result.user, setLocalError, setLoading);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setLocalError(FIREBASE_ERRORS[err.code] || err.message || 'Error tras redirección de Google');
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleFirebaseLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setLocalError('');
-    
+
+    if (!isFirebaseConfigured() || !auth) {
+      setLocalError('Firebase no configurado. Pega NEXT_PUBLIC_FIREBASE_* en Vercel y haz Redeploy.');
+      setLoading(false);
+      return;
+    }
+
     try {
-      if (!auth) {
-        setLocalError('Falta configurar las llaves de Firebase en .env.local');
-        setLoading(false);
-        return;
-      }
-      
       const result = await signInWithPopup(auth, googleProvider);
-      const email = result.user.email;
-      
-      if (email !== 'jomstudiovzla@gmail.com') {
-        await signOut(auth);
-        setLocalError('Acceso denegado. Solo jomstudiovzla@gmail.com tiene permisos de Admin.');
-        setLoading(false);
-        return;
-      }
-      
-      // Conectar con la sesión del servidor
-      const res = await fetch('/api/auth/firebase-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
-      });
-      
-      if (res.ok) {
-        window.location.href = '/';
-      } else {
-        setLocalError('Error al crear sesión segura en el servidor.');
-      }
+      await handleGoogleUser(result.user, setLocalError, setLoading);
     } catch (err) {
       console.error(err);
-      if (err.code === 'auth/invalid-api-key') {
-         setLocalError('Falta configurar las llaves de Firebase en .env.local');
+      const popupBlocked = err.code === 'auth/popup-blocked' || err.code === 'auth/popup-closed-by-user';
+
+      if (popupBlocked) {
+        try {
+          await signInWithRedirect(auth, googleProvider);
+          return;
+        } catch (redirectErr) {
+          setLocalError(FIREBASE_ERRORS[redirectErr.code] || redirectErr.message);
+        }
       } else {
-         setLocalError('Error al iniciar sesión con Google.');
+        setLocalError(
+          FIREBASE_ERRORS[err.code] ||
+            err.message ||
+            'Error al iniciar sesión con Google.'
+        );
       }
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -91,9 +158,20 @@ export default function LoginPage() {
         {errorKey && ERRORS[errorKey] && (
           <div className="login-error">{ERRORS[errorKey]}</div>
         )}
-        
+
         {localError && (
           <div className="login-error" style={{ marginTop: '10px' }}>{localError}</div>
+        )}
+
+        {setupHints.length > 0 && (
+          <div className="login-setup-hints">
+            <strong>Checklist Vercel / Firebase:</strong>
+            <ul>
+              {setupHints.map((hint) => (
+                <li key={hint}>{hint}</li>
+              ))}
+            </ul>
+          </div>
         )}
 
         <button

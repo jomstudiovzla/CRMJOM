@@ -81,22 +81,45 @@ export default function MailsViewer({ leads, onUpdate }) {
   }, []);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    let cancelled = false;
 
-  // Handle URL 'lead' param for auto-opening
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const leadParam = params.get('lead');
-    if (leadParam && threads) {
-      if (selectedItem?.nombre_negocio !== leadParam) {
-        setActiveFolder('leads');
-        const existingThread = threads.find(t => t.nombre_negocio === leadParam);
-        const itemToSelect = existingThread || { nombre_negocio: leadParam, messages: [] };
-        handleSelectItem(itemToSelect, true);
+    (async () => {
+      try {
+        const threadsRes = await fetch('/api/email/threads');
+        const threadsData = await threadsRes.json();
+        if (!cancelled && threadsData.success) {
+          setThreads(threadsData.data.sort((a, b) => {
+            const aTime = a.messages?.[0]?.sentAt ? new Date(a.messages[0].sentAt) : new Date(0);
+            const bTime = b.messages?.[0]?.sentAt ? new Date(b.messages[0].sentAt) : new Date(0);
+            return bTime - aTime;
+          }));
+        }
+      } catch (e) {
+        if (!cancelled) console.error('Error threads:', e);
       }
-    }
-  }, [threads]);
+
+      try {
+        const statusRes = await fetch('/api/email/status');
+        const statusData = await statusRes.json();
+        if (!cancelled && statusData.success) setEmailStatus(statusData);
+      } catch (e) {
+        if (!cancelled) console.error('Error status:', e);
+      }
+
+      if (!cancelled) setIsSyncing(true);
+      try {
+        const syncRes = await fetch('/api/email/sync');
+        const syncData = await syncRes.json();
+        if (!cancelled && syncData.success) setInboxEmails(syncData.inbox || []);
+      } catch (e) {
+        if (!cancelled) console.error('Error sync:', e);
+      } finally {
+        if (!cancelled) setIsSyncing(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, []);
 
   // Derived lists based on folder & search
   const filteredList = useMemo(() => {
@@ -130,6 +153,48 @@ export default function MailsViewer({ leads, onUpdate }) {
     return list;
   }, [activeFolder, inboxEmails, threads, searchQuery]);
 
+  const fetchAiDraft = useCallback(async (leadName, email, messages, force = false) => {
+    const cacheKey = `${leadName}:${messages.length}`;
+    if (!force && draftCache.current.has(cacheKey)) {
+      const cached = draftCache.current.get(cacheKey);
+      setCompose(cached.compose);
+      setAiGenerated(cached.aiGenerated);
+      return;
+    }
+
+    const lead = leads.find((l) => l.nombre_negocio === leadName) || { nombre_negocio: leadName, email };
+    setDrafting(true);
+    setAiGenerated(false);
+
+    try {
+      const res = await fetch('/api/email/draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre_negocio: leadName, messages, lead }),
+      });
+      const data = await res.json();
+
+      if (data.success && data.data) {
+        const nextCompose = { to: lead.email || email || '', subject: data.data.subject, body: data.data.body };
+        setCompose(nextCompose);
+        const isAi = data.data.generatedByAi !== false;
+        setAiGenerated(isAi);
+        draftCache.current.set(cacheKey, { compose: nextCompose, aiGenerated: isAi });
+        return;
+      }
+    } catch (e) {
+      console.error('Error fetching AI draft:', e);
+    } finally {
+      setDrafting(false);
+    }
+
+    const template = buildCamp01Email(lead);
+    const fallback = { to: lead.email || email || '', subject: template.subject, body: template.body };
+    setCompose(fallback);
+    setAiGenerated(false);
+    draftCache.current.set(cacheKey, { compose: fallback, aiGenerated: false });
+  }, [leads]);
+
   // Selection Logic
   const handleSelectItem = async (item, forceAi = false) => {
     setSelectedItem(item);
@@ -152,6 +217,25 @@ export default function MailsViewer({ leads, onUpdate }) {
       }
     }
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    const params = new URLSearchParams(window.location.search);
+    const leadParam = params.get('lead');
+    if (!leadParam || !threads.length) return;
+
+    const existingThread = threads.find((t) => t.nombre_negocio === leadParam);
+    const itemToSelect = existingThread || { nombre_negocio: leadParam, messages: [] };
+
+    (async () => {
+      if (cancelled || selectedItem?.nombre_negocio === leadParam) return;
+      setActiveFolder('leads');
+      await handleSelectItem(itemToSelect, true);
+    })();
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- open once when threads load
+  }, [threads]);
 
   const toggleSelectAll = () => {
     if (selectedUids.size === filteredList.length && filteredList.length > 0) {
@@ -332,49 +416,6 @@ export default function MailsViewer({ leads, onUpdate }) {
       setPipelineStep(null);
     }
   };
-
-  // Ghostwriter / Thread methods
-  const fetchAiDraft = useCallback(async (leadName, email, messages, force = false) => {
-    const cacheKey = `${leadName}:${messages.length}`;
-    if (!force && draftCache.current.has(cacheKey)) {
-      const cached = draftCache.current.get(cacheKey);
-      setCompose(cached.compose);
-      setAiGenerated(cached.aiGenerated);
-      return;
-    }
-
-    const lead = leads.find((l) => l.nombre_negocio === leadName) || { nombre_negocio: leadName, email };
-    setDrafting(true);
-    setAiGenerated(false);
-
-    try {
-      const res = await fetch('/api/email/draft', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre_negocio: leadName, messages, lead }),
-      });
-      const data = await res.json();
-
-      if (data.success && data.data) {
-        const nextCompose = { to: lead.email || email || '', subject: data.data.subject, body: data.data.body };
-        setCompose(nextCompose);
-        const isAi = data.data.generatedByAi !== false;
-        setAiGenerated(isAi);
-        draftCache.current.set(cacheKey, { compose: nextCompose, aiGenerated: isAi });
-        return;
-      }
-    } catch (e) {
-      console.error('Error fetching AI draft:', e);
-    } finally {
-      setDrafting(false);
-    }
-
-    const template = buildCamp01Email(lead);
-    const fallback = { to: lead.email || email || '', subject: template.subject, body: template.body };
-    setCompose(fallback);
-    setAiGenerated(false);
-    draftCache.current.set(cacheKey, { compose: fallback, aiGenerated: false });
-  }, [leads]);
 
   const handleSend = async (leadName) => {
     if (!compose.to) return;

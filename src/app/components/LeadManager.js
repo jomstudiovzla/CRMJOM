@@ -54,12 +54,6 @@ export default function LeadManager({ leads, onUpdate }) {
   const [feedback, setFeedback] = useState(null);
   const [emailStatus, setEmailStatus] = useState(null);
   const [isAddLeadOpen, setIsAddLeadOpen] = useState(false);
-  const [localLeads, setLocalLeads] = useState(leads);
-
-  useEffect(() => {
-    setLocalLeads(leads);
-  }, [leads]);
-
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -72,7 +66,7 @@ export default function LeadManager({ leads, onUpdate }) {
     return () => { cancelled = true; };
   }, []);
 
-  const filteredLeads = localLeads.filter((lead) => {
+  const filteredLeads = leads.filter((lead) => {
     const paquete = getPaquete(lead);
     const aiCat = lead.categoria_ia || lead.estado_pipeline;
 

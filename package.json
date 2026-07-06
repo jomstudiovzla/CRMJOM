@@ -6,7 +6,12 @@
     "dev": "next dev -p 3005",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "vercel:login": "vercel login",
+    "vercel:link": "vercel link",
+    "vercel:env": "node scripts/push-vercel-env.mjs",
+    "vercel:deploy": "vercel --prod",
+    "vercel:google-setup": "node scripts/vercel-google-setup.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.10.0",
@@ -26,6 +31,7 @@
   },
   "devDependencies": {
     "eslint": "^9",
-    "eslint-config-next": "16.2.10"
+    "eslint-config-next": "16.2.10",
+    "vercel": "^41.7.8"
   }
 }
