@@ -166,6 +166,8 @@ export default function MailsViewer({ leads, onUpdate, syncTrigger = 0 }) {
     let list = [];
     if (activeFolder === 'leads') {
       list = threads;
+    } else if (activeFolder === 'postulaciones') {
+      list = threads.filter(t => t.messages?.some(m => m.id?.startsWith('auto_')));
     } else {
       list = inboxEmails.filter((e) => leadEmails.has(e.from?.toLowerCase()));
       if (activeFolder === 'important') {
@@ -177,7 +179,7 @@ export default function MailsViewer({ leads, onUpdate, syncTrigger = 0 }) {
 
     const q = searchQuery.toLowerCase();
     if (q) {
-      if (activeFolder === 'leads') {
+      if (activeFolder === 'leads' || activeFolder === 'postulaciones') {
         list = list.filter(t => 
           t.nombre_negocio.toLowerCase().includes(q) || 
           (t.to || '').toLowerCase().includes(q)
@@ -242,7 +244,7 @@ export default function MailsViewer({ leads, onUpdate, syncTrigger = 0 }) {
     setPipelineStep(null);
     
     // Si abrimos un hilo de lead, intentar autogenerar respuesta
-    if (activeFolder === 'leads' || forceAi) {
+    if (activeFolder === 'leads' || activeFolder === 'postulaciones' || forceAi) {
       const messages = item.messages || [];
       const contactEmail = messages[0]?.to || item.to || 'Sin email';
       const lead = leads.find((l) => l.nombre_negocio === item.nombre_negocio) || { nombre_negocio: item.nombre_negocio, email: contactEmail };
@@ -500,7 +502,7 @@ export default function MailsViewer({ leads, onUpdate, syncTrigger = 0 }) {
       );
     }
 
-    if (activeFolder === 'leads') {
+    if (activeFolder === 'leads' || activeFolder === 'postulaciones') {
       const thread = selectedItem;
       const messages = thread.messages || [];
       const contactEmail = messages[0]?.to || thread.to || 'Sin email';
@@ -688,6 +690,15 @@ export default function MailsViewer({ leads, onUpdate, syncTrigger = 0 }) {
           <span className="folder-badge">{isSyncing && activeFolder === 'spam' ? '⏳' : displaySpamCount}</span>
         </button>
         <button 
+          className={`folder-btn ${activeFolder === 'postulaciones' ? 'active' : ''}`}
+          onClick={() => { setActiveFolder('postulaciones'); setSelectedItem(null); }}
+        >
+          <span>🤖 Postulaciones</span>
+          <span className="folder-badge">
+            {threads.filter(t => t.messages?.some(m => m.id?.startsWith('auto_'))).length}
+          </span>
+        </button>
+        <button 
           className={`folder-btn ${activeFolder === 'leads' ? 'active' : ''}`}
           onClick={() => { setActiveFolder('leads'); setSelectedItem(null); }}
         >
@@ -717,7 +728,7 @@ export default function MailsViewer({ leads, onUpdate, syncTrigger = 0 }) {
             {isSyncing ? 'Sincronizando...' : '🔄 Sincronizar'}
           </button>
         </div>
-        {activeFolder !== 'leads' && (
+        {activeFolder !== 'leads' && activeFolder !== 'postulaciones' && (
             <div className="mails-list-toolbar">
               <label className="checkbox-label">
                 <input 
@@ -741,8 +752,12 @@ export default function MailsViewer({ leads, onUpdate, syncTrigger = 0 }) {
           {filteredList.map((item) => {
             const isSelected = selectedItem?.uid ? selectedItem.uid === item.uid : selectedItem?.nombre_negocio === item.nombre_negocio;
             
-            if (activeFolder === 'leads') {
+            if (activeFolder === 'leads' || activeFolder === 'postulaciones') {
               const messages = item.messages || [];
+              const hasAuto = messages.some(m => m.id?.startsWith('auto_'));
+              const matchedLead = leads.find(l => l.nombre_negocio?.toLowerCase() === item.nombre_negocio?.toLowerCase());
+              const leadStatus = matchedLead?.estado_pipeline || 'nuevo';
+              
               return (
                 <div 
                   key={item.nombre_negocio} 
@@ -751,11 +766,27 @@ export default function MailsViewer({ leads, onUpdate, syncTrigger = 0 }) {
                 >
                   <div className="item-content">
                     <div className="item-header">
-                      <span className="item-sender">{item.nombre_negocio}</span>
+                      <span className="item-sender">
+                        {hasAuto ? '🤖 ' : ''}{item.nombre_negocio}
+                      </span>
                       <span className="item-date">{messages.length > 0 ? new Date(messages[0].sentAt).toLocaleDateString() : ''}</span>
                     </div>
                     <div className="item-subject">{messages.length > 0 ? messages[0].subject : 'Sin historial'}</div>
-                    <div className="item-preview">{messages.length} msgs en el hilo</div>
+                    <div className="item-preview" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                      <span>{messages.length} msgs en el hilo</span>
+                      <span className={`status-badge status-${leadStatus}`} style={{
+                        fontSize: '10px',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        background: leadStatus === 'contactado' ? 'rgba(74, 222, 128, 0.15)' : leadStatus === 'contactando' ? 'rgba(96, 165, 250, 0.15)' : 'rgba(255,255,255,0.1)',
+                        color: leadStatus === 'contactado' ? '#4ade80' : leadStatus === 'contactando' ? '#60a5fa' : '#aaa',
+                        border: `1px solid ${leadStatus === 'contactado' ? 'rgba(74, 222, 128, 0.3)' : leadStatus === 'contactando' ? 'rgba(96, 165, 250, 0.3)' : 'rgba(255,255,255,0.2)'}`,
+                        textTransform: 'uppercase',
+                        fontWeight: 'bold'
+                      }}>
+                        {leadStatus === 'contactando' ? 'Postulando' : leadStatus === 'contactado' ? 'Postulado' : leadStatus}
+                      </span>
+                    </div>
                   </div>
                 </div>
               );
