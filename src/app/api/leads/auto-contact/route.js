@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { autoContactComputrabajo } from '@/lib/autoContactComputrabajo';
+import { autoContactLinkedin } from '@/lib/autoContactLinkedin';
 import { mergeAllLeads } from '@/lib/leadsStore';
 
 export const runtime = 'nodejs';
@@ -21,24 +22,47 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: 'Lead no encontrado' }, { status: 404 });
     }
 
-    const user = process.env.COMPUTRABAJO_USER;
-    const pass = process.env.COMPUTRABAJO_PASS;
+    const isLinkedin = lead.link && lead.link.includes('linkedin.com');
 
-    if (!user || !pass) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Por favor, configura COMPUTRABAJO_USER y COMPUTRABAJO_PASS en tu archivo .env.local' 
-      }, { status: 400 });
+    if (isLinkedin) {
+      const user = process.env.LINKEDIN_USER;
+      const pass = process.env.LINKEDIN_PASS;
+
+      if (!user || !pass) {
+        return NextResponse.json({ 
+          success: false, 
+          error: 'Por favor, configura LINKEDIN_USER y LINKEDIN_PASS en tu archivo .env.local para automatizar LinkedIn.' 
+        }, { status: 400 });
+      }
+
+      console.log(`[Auto-Contact API] Iniciando postulación automática en LinkedIn para ${nombre_negocio}`);
+      const result = await autoContactLinkedin(lead, user, pass);
+
+      return NextResponse.json({
+        success: true,
+        message: 'Postulación en LinkedIn (Easy Apply) completada con éxito.',
+        data: result
+      });
+    } else {
+      const user = process.env.COMPUTRABAJO_USER;
+      const pass = process.env.COMPUTRABAJO_PASS;
+
+      if (!user || !pass) {
+        return NextResponse.json({ 
+          success: false, 
+          error: 'Por favor, configura COMPUTRABAJO_USER y COMPUTRABAJO_PASS en tu archivo .env.local para automatizar Computrabajo.' 
+        }, { status: 400 });
+      }
+
+      console.log(`[Auto-Contact API] Iniciando postulación automática para ${nombre_negocio}`);
+      const result = await autoContactComputrabajo(lead, user, pass);
+
+      return NextResponse.json({
+        success: true,
+        message: 'Postulación completada de forma 100% automática.',
+        data: result
+      });
     }
-
-    console.log(`[Auto-Contact API] Iniciando postulación automática para ${nombre_negocio}`);
-    const result = await autoContactComputrabajo(lead, user, pass);
-
-    return NextResponse.json({
-      success: true,
-      message: 'Postulación completada de forma 100% automática.',
-      data: result
-    });
 
   } catch (error) {
     console.error('Error in /api/leads/auto-contact:', error);

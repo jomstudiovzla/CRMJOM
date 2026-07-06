@@ -135,6 +135,10 @@ export default function LeadManager({ leads, onUpdate }) {
   const handleAutoContact = async (lead) => {
     setLoadingAction(`auto-${lead.nombre_negocio}`);
     setFeedback(null);
+    
+    // Actualización optimista de la UI
+    setLocalLeads(prev => prev.map(l => l.nombre_negocio === lead.nombre_negocio ? { ...l, estado_pipeline: 'contactando' } : l));
+
     try {
       const res = await fetch('/api/leads/auto-contact', {
         method: 'POST',
@@ -144,12 +148,15 @@ export default function LeadManager({ leads, onUpdate }) {
       const data = await res.json();
       if (data.success) {
         setFeedback({ type: 'success', text: `🤖 ${data.message}` });
+        setLocalLeads(prev => prev.map(l => l.nombre_negocio === lead.nombre_negocio ? { ...l, estado_pipeline: 'contactado' } : l));
         onUpdate();
       } else {
         setFeedback({ type: 'error', text: data.error });
+        setLocalLeads(prev => prev.map(l => l.nombre_negocio === lead.nombre_negocio ? { ...l, estado_pipeline: lead.estado_pipeline || 'nuevo' } : l));
       }
     } catch (e) {
       setFeedback({ type: 'error', text: e.message });
+      setLocalLeads(prev => prev.map(l => l.nombre_negocio === lead.nombre_negocio ? { ...l, estado_pipeline: lead.estado_pipeline || 'nuevo' } : l));
     } finally {
       setLoadingAction(null);
     }
@@ -337,26 +344,34 @@ export default function LeadManager({ leads, onUpdate }) {
                   >
                     💬 WhatsApp
                   </button>
-                  {lead.link && !lead.email && !lead.link.includes('computrabajo') && (
-                    <a
-                      className="btn-secondary btn-sm"
-                      href={lead.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      🔗 Upwork
-                    </a>
-                  )}
-                  {lead.link && lead.link.includes('computrabajo') && (
-                    <button
-                      className="btn-primary btn-sm"
-                      onClick={() => handleAutoContact(lead)}
-                      disabled={loadingAction !== null}
-                      style={{ marginLeft: '4px', background: '#2563eb', borderColor: '#2563eb' }}
-                      title="Postularse automáticamente con Puppeteer"
-                    >
-                      {loadingAction === `auto-${lead.nombre_negocio}` ? '🤖 Postulando...' : '🤖 Auto-Aplicar'}
-                    </button>
+                  {lead.estado_pipeline === 'contactando' ? (
+                    <span className="badge-pro" style={{ background: '#2563eb', padding: '6px 12px', borderRadius: '6px', fontWeight: 'bold' }}>
+                      🤖 POSTULANDO...
+                    </span>
+                  ) : (
+                    <>
+                      {lead.link && !lead.email && !lead.link.includes('computrabajo') && !lead.link.includes('linkedin.com') && (
+                        <a
+                          className="btn-secondary btn-sm"
+                          href={lead.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          🔗 Upwork
+                        </a>
+                      )}
+                      {lead.link && (lead.link.includes('computrabajo') || lead.link.includes('linkedin.com')) && (
+                        <button
+                          className="btn-primary btn-sm"
+                          onClick={() => handleAutoContact(lead)}
+                          disabled={loadingAction !== null}
+                          style={{ marginLeft: '4px', background: '#2563eb', borderColor: '#2563eb' }}
+                          title="Postularse automáticamente con Puppeteer"
+                        >
+                          {loadingAction === `auto-${lead.nombre_negocio}` ? '🤖 Postulando...' : '🤖 Auto-Aplicar'}
+                        </button>
+                      )}
+                    </>
                   )}
                   {!AI_CATEGORY_KEYS.includes(lead.estado_pipeline) &&
                     lead.estado_pipeline !== 'contactado' &&

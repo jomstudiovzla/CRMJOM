@@ -79,7 +79,7 @@ export async function GET() {
 
     for (const query of queries) {
       try {
-        // Computrabajo (Búsqueda agresiva)
+        // 1. Computrabajo (Búsqueda agresiva)
         const ctUrl = `https://co.computrabajo.com/trabajo-de-${encodeURIComponent(query.keyword.replace(/ /g, '-'))}`;
         const ctHtml = await fetchWithHeaders(ctUrl);
         if (ctHtml) {
@@ -105,6 +105,35 @@ export async function GET() {
       } catch(e) {
         console.warn('[JOM Scraper] Computrabajo falló:', e.message);
       }
+
+      try {
+        // 2. LinkedIn Guest Jobs (Búsqueda pública de empleo)
+        const liUrl = `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=${encodeURIComponent(query.keyword)}&location=Venezuela&start=0`;
+        const liHtml = await fetchWithHeaders(liUrl);
+        if (liHtml) {
+          const $ = cheerio.load(liHtml);
+          $('li').slice(0, JOBS_PER_QUERY).each((_, el) => {
+            const rawLink = $(el).find('a.base-card__full-link').attr('href') || '';
+            const link = rawLink.split('?')[0];
+            const title = $(el).find('h3.base-search-card__title').text().trim();
+            const company = $(el).find('h4.base-search-card__subtitle').text().trim();
+            
+            if (title && link && !seenLinks.has(link)) {
+              seenLinks.add(link);
+              newLeads.push({
+                nombre_negocio: `[LinkedIn] ${company} - ${title.slice(0, 50)}`,
+                email: '', telefono: '', web: link, link: link,
+                estado_pipeline: 'nuevo', calidad_lead: 'media', origen: 'LinkedIn Scraper',
+                nicho: query.label, paquete: query.paquete, paquete_jom: query.paquete, idioma: 'ES',
+                case_referencia: query.case_referencia, gap_detectado: `Puesto de ${title} en ${company}`,
+                fecha_contacto: new Date().toISOString(), categoria_ia: null, prioridad: 'baja'
+              });
+            }
+          });
+        }
+      } catch(e) {
+        console.warn('[JOM Scraper] LinkedIn guest jobs falló:', e.message);
+      }
     }
 
     // WeWorkRemotely RSS (Trabajos de diseño internacionales, Fiverr/Freelancer proxy)
@@ -118,19 +147,22 @@ export async function GET() {
         const feed = await parser.parseURL(feedUrl);
         const recentJobs = (feed.items || []).slice(0, 5);
         for (const job of recentJobs) {
-          if (!job.link || seenLinks.has(job.link)) continue;
-          seenLinks.add(job.link);
-          newLeads.push({
-            nombre_negocio: `[Freelance/WWR] ${job.title?.slice(0, 70)}`,
-            email: '', telefono: '', web: job.link, link: job.link,
-            estado_pipeline: 'nuevo', calidad_lead: 'alta', origen: 'Global Freelance Scraper',
-            nicho: feedUrl.includes('design') ? 'DSGN' : 'DEV', paquete: 'DSGN', paquete_jom: 'DSGN', idioma: 'EN',
-            case_referencia: 'CASE_000', gap_detectado: (job.contentSnippet || '').slice(0, 200),
-            fecha_contacto: new Date().toISOString(), categoria_ia: null, prioridad: 'alta'
-          });
+          const link = job.link || '';
+          const title = job.title || '';
+          if (title && link && !seenLinks.has(link)) {
+            seenLinks.add(link);
+            newLeads.push({
+              nombre_negocio: `[Global] ${title.slice(0, 70)}`,
+              email: '', telefono: '', web: link, link: link,
+              estado_pipeline: 'nuevo', calidad_lead: 'media', origen: 'WWR/Freelancer RSS',
+              nicho: 'DSGN', paquete: 'PROP', paquete_jom: 'PROP', idioma: 'EN',
+              case_referencia: 'CASE_015 — Inmobiliaria Premium', gap_detectado: job.contentSnippet?.slice(0, 200) || 'Oferta freelance detectada',
+              fecha_contacto: new Date().toISOString(), categoria_ia: null, prioridad: 'baja'
+            });
+          }
         }
-      } catch (e) {
-        console.warn('[JOM Scraper] WeWorkRemotely/Freelancer falló:', e.message);
+      } catch(e) {
+        console.warn('[JOM Scraper] RSS falló:', e.message);
       }
     }
 
@@ -189,19 +221,35 @@ export async function GET() {
 
     const added = appendEnrichedLeads(newLeads);
 
-    // Disparar auto-aplicación en segundo plano de manera no bloqueante para Computrabajo
-    const user = process.env.COMPUTRABAJO_USER;
-    const pass = process.env.COMPUTRABAJO_PASS;
-    if (user && pass) {
-      const addedCtLeads = added.filter(l => l.link && l.link.includes('computrabajo'));
+    // Disparar auto-aplicación en segundo plano de manera no bloqueante para Computrabajo y LinkedIn
+    const ctUser = process.env.COMPUTRABAJO_USER;
+    const ctPass = process.env.COMPUTRABAJO_PASS;
+    const liUser = process.env.LINKEDIN_USER;
+    const liPass = process.env.LINKEDIN_PASS;
+
+    const addedCtLeads = added.filter(l => l.link && l.link.includes('computrabajo'));
+    if (ctUser && ctPass && addedCtLeads.length > 0) {
       for (const lead of addedCtLeads) {
         (async () => {
           try {
-            console.log(`[Background Auto-Apply] Postulándose de forma silenciosa para: ${lead.nombre_negocio}`);
-            // Usamos headless: true (silencioso) para no irrumpir en el escritorio del usuario
-            await autoContactComputrabajo(lead, user, pass, true);
+            console.log(`[Background Auto-Apply] Postulándose en Computrabajo para: ${lead.nombre_negocio}`);
+            await autoContactComputrabajo(lead, ctUser, ctPass, true);
           } catch(err) {
-            console.error(`[Background Auto-Apply Error] ${lead.nombre_negocio}:`, err.message);
+            console.error(`[Background Auto-Apply Error Computrabajo] ${lead.nombre_negocio}:`, err.message);
+          }
+        })();
+      }
+    }
+
+    const addedLiLeads = added.filter(l => l.link && l.link.includes('linkedin.com'));
+    if (liUser && liPass && addedLiLeads.length > 0) {
+      for (const lead of addedLiLeads) {
+        (async () => {
+          try {
+            console.log(`[Background Auto-Apply] Postulándose en LinkedIn para: ${lead.nombre_negocio}`);
+            await autoContactLinkedin(lead, liUser, liPass, true);
+          } catch(err) {
+            console.error(`[Background Auto-Apply Error LinkedIn] ${lead.nombre_negocio}:`, err.message);
           }
         })();
       }
