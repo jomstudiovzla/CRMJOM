@@ -11,6 +11,7 @@ import {
   signOut,
 } from 'firebase/auth';
 import './LoginPage.css';
+import { getProductionLoginUrl, isVercelPreviewHost, PRODUCTION_HOST } from '@/lib/productionHost';
 
 const ADMIN_EMAIL = 'jomstudiovzla@gmail.com';
 
@@ -22,7 +23,7 @@ const ERRORS = {
 
 const FIREBASE_ERRORS = {
   'auth/invalid-api-key': 'Firebase API Key inválida — redeploy en Vercel tras pegar las variables.',
-  'auth/unauthorized-domain': 'Dominio no autorizado en Firebase. Añade tu URL de Vercel en Authorized domains.',
+  'auth/unauthorized-domain': null,
   'auth/popup-blocked': 'Popup bloqueado — reintentando con redirección…',
   'auth/popup-closed-by-user': 'Ventana cerrada. Intenta de nuevo.',
   'auth/cancelled-popup-request': 'Espera a que termine el intento anterior.',
@@ -63,10 +64,16 @@ export default function LoginPage() {
 
   useEffect(() => {
     let cancelled = false;
+    const host = window.location.hostname;
+
+    if (isVercelPreviewHost(host)) {
+      window.location.replace(getProductionLoginUrl());
+      return undefined;
+    }
 
     (async () => {
       try {
-        const res = await fetch('/api/auth/firebase-config');
+        const res = await fetch(`/api/auth/firebase-config?host=${encodeURIComponent(host)}`);
         const data = await res.json();
         if (!cancelled && data.hints?.length) {
           setSetupHints(data.hints);
@@ -85,7 +92,10 @@ export default function LoginPage() {
         }
       } catch (err) {
         if (!cancelled) {
-          setLocalError(FIREBASE_ERRORS[err.code] || err.message || 'Error tras redirección de Google');
+          const domainMsg = err.code === 'auth/unauthorized-domain'
+            ? `Dominio "${host}" no autorizado. Firebase → Authorized domains → añade "${host}" o usa https://${PRODUCTION_HOST}/login`
+            : null;
+          setLocalError(domainMsg || FIREBASE_ERRORS[err.code] || err.message || 'Error tras redirección de Google');
         }
       }
     })();
@@ -134,8 +144,13 @@ export default function LoginPage() {
           setLocalError(FIREBASE_ERRORS[redirectErr.code] || redirectErr.message);
         }
       } else {
+        const host = window.location.hostname;
+        const domainMsg = err.code === 'auth/unauthorized-domain'
+          ? `Dominio "${host}" no autorizado. Firebase → Authorized domains → añade "${host}"`
+          : null;
         setLocalError(
-          FIREBASE_ERRORS[err.code] ||
+          domainMsg ||
+            FIREBASE_ERRORS[err.code] ||
             err.message ||
             'Error al iniciar sesión con Google.'
         );

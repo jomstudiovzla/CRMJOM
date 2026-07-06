@@ -86,10 +86,11 @@ export default function Home() {
       } finally {
         if (!cancelled) setLoading(false);
       }
-    })();
 
-    // Primera sincronización de correos al cargar
-    triggerEmailSync();
+      if (!cancelled) {
+        triggerEmailSync().catch(() => {});
+      }
+    })();
 
     return () => { cancelled = true; };
   }, [triggerEmailSync]);

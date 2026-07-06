@@ -11,7 +11,9 @@
     "vercel:link": "vercel link",
     "vercel:env": "node scripts/push-vercel-env.mjs",
     "vercel:deploy": "vercel --prod",
-    "vercel:google-setup": "node scripts/vercel-google-setup.mjs"
+    "vercel:google-setup": "node scripts/vercel-google-setup.mjs",
+    "firebase:domains": "node scripts/firebase-authorize-domains.mjs",
+    "firebase:seed": "node scripts/seed-firestore-leads.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.10.0",

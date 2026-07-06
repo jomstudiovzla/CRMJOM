@@ -15,7 +15,15 @@ const ROOT = path.resolve(__dirname, '..');
 const ENV_FILE = path.join(ROOT, '.env.local');
 const TARGETS = ['production', 'preview', 'development'];
 
-const SKIP_KEYS = new Set();
+const SKIP_KEYS = new Set([
+  'VERCEL_OIDC_TOKEN',
+  'VERCEL',
+  'VERCEL_ENV',
+  'VERCEL_URL',
+  'VERCEL_GIT_COMMIT_SHA',
+  'VERCEL_GIT_COMMIT_REF',
+  'VERCEL_GIT_REPO_SLUG',
+]);
 const vercelHostArg = process.argv[2]?.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
 function parseEnvFile(content) {

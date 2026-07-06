@@ -1,5 +1,6 @@
 // lib/firebaseAdmin.js
 // Firebase Admin SDK para operaciones de servidor (Vercel/Node.js)
+import fs from 'fs';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
@@ -14,11 +15,16 @@ function getAdminApp() {
     throw new Error('NEXT_PUBLIC_FIREBASE_PROJECT_ID no configurado');
   }
 
-  // Si hay credenciales de service account (FIREBASE_SERVICE_ACCOUNT_JSON), úsalas
   const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if (serviceAccountJson) {
     const serviceAccount = JSON.parse(serviceAccountJson);
-    return initializeApp({ credential: cert(serviceAccount), projectId });
+    return initializeApp({ credential: cert(serviceAccount), projectId: serviceAccount.project_id || projectId });
+  }
+
+  const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
+  if (serviceAccountPath && fs.existsSync(serviceAccountPath)) {
+    const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+    return initializeApp({ credential: cert(serviceAccount), projectId: serviceAccount.project_id || projectId });
   }
 
   // Fallback: modo sin credenciales (funciona con reglas de Firestore abiertas en dev)
