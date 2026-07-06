@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3005",
+    "dev": "node server.js",
     "build": "next build",
-    "start": "next start",
+    "start": "NODE_ENV=production node server.js",
     "lint": "eslint",
     "vercel:login": "vercel login",
     "vercel:link": "vercel link",
@@ -27,10 +27,13 @@
     "iron-session": "^8.0.4",
     "mailparser": "^3.9.14",
     "next": "16.2.10",
+    "node-cron": "^4.6.0",
     "nodemailer": "^9.0.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "rss-parser": "^3.13.0"
+    "rss-parser": "^3.13.0",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
     "eslint": "^9",

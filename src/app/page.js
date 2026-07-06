@@ -8,6 +8,7 @@ import MailsViewer from './components/MailsViewer';
 import PlaybookViewer from './components/PlaybookViewer';
 import CompanyProfile from './components/CompanyProfile';
 import UserMenu from './components/UserMenu';
+import { io } from 'socket.io-client';
 import styles from './page.module.css';
 
 const VALID_TABS = new Set(['company', 'leads', 'mails', 'dashboard', 'playbook']);
@@ -89,30 +90,51 @@ export default function Home() {
 
       if (!cancelled) {
         triggerEmailSync().catch(() => {});
-      }
     })();
 
     return () => { cancelled = true; };
-  }, [triggerEmailSync]);
+  }, []);
 
-  // ── timers de tiempo real ────────────────────────────────────────────────────
-
+  // ── Inicialización (Sockets + Session) ────────────────────────────────────────────────────────
   useEffect(() => {
-    // Correos: cada 30 segundos
-    emailTimerRef.current = setInterval(triggerEmailSync, EMAIL_POLL_MS);
+    // Escuchar actualizaciones de Firebase
+    let unsubscribeLeads = () => {};
+    if (typeof window !== 'undefined') {
+      import('@/lib/leadsStoreFirestore').then(({ listenToLeads }) => {
+        unsubscribeLeads = listenToLeads(data => setLeads(data));
+      });
+    }
 
-    // Leads: cada 4 horas (además de Firestore live si se migra)
-    leadsTimerRef.current = setInterval(fetchLeads, LEADS_POLL_MS);
+    // Inicializar sesión y datos
+    fetchSession();
+    fetchLeads();
 
-    // Sesión: cada 5 min para detectar expiración
+    // Inicializar WebSockets
+    const socket = io();
+    
+    socket.on('connect', () => {
+      console.log('[Socket.io] Conectado al servidor WebSocket');
+    });
+
+    socket.on('emails_updated', () => {
+      console.log('[Socket.io] Recibida notificación de correos actualizados');
+      setEmailSyncTs(Date.now()); // gatillar recarga en MailsViewer
+    });
+
+    socket.on('leads_updated', () => {
+      console.log('[Socket.io] Recibida notificación de leads scrapeados (Upwork)');
+      fetchLeads();
+    });
+
+    // Session polling (still needed since auth isn't over sockets)
     sessionTimerRef.current = setInterval(fetchSession, SESSION_POLL_MS);
 
     return () => {
-      clearInterval(emailTimerRef.current);
-      clearInterval(leadsTimerRef.current);
+      if (unsubscribeLeads) unsubscribeLeads();
       clearInterval(sessionTimerRef.current);
+      socket.disconnect();
     };
-  }, [triggerEmailSync, fetchLeads, fetchSession]);
+  }, [fetchLeads, fetchSession]);
 
   // ── Firestore real-time listener para leads ──────────────────────────────────
 

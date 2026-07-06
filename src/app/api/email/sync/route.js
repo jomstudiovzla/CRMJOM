@@ -68,7 +68,9 @@ export async function GET() {
         if (!fromEmail) continue;
 
         let categoria_ia = catCache[uid];
+        let isNew = false;
         if (!categoria_ia) {
+          isNew = true;
           try {
             categoria_ia = await classifyEmailIntent(bodyText);
             catCache[uid] = categoria_ia;
@@ -99,13 +101,41 @@ export async function GET() {
           categoria_ia,
           date: parsed.date || new Date()
         });
+
+        // 🤖 Ghostwriter: Si es nuevo y es lead, crear borrador automáticamente
+        if (isNew && (categoria_ia === 'interesado' || categoria_ia === 'mas_informacion' || categoria_ia === 'lead')) {
+          try {
+            const { generateReplyDraft } = require('@/lib/gemini');
+            const MailComposer = require('nodemailer/lib/mail-composer');
+            
+            console.log(`[Ghostwriter] Generando borrador para ${fromEmail}...`);
+            const draft = await generateReplyDraft({ 
+              lead: { email: fromEmail, nombre_negocio: fromName, categoria_ia }, 
+              messages: [{ body: bodyText, sentAt: parsed.date, subject, direction: 'inbound', status: 'received' }] 
+            });
+
+            const mailOptions = {
+              from: user,
+              to: fromEmail,
+              subject: draft.subject,
+              text: draft.body,
+              inReplyTo: message.envelope.messageId,
+              references: [message.envelope.messageId]
+            };
+
+            const mail = new MailComposer(mailOptions);
+            const buffer = await mail.compile().build();
+            
+            // Intentar guardarlo en la carpeta de Borradores (usamos INBOX con flag \\Draft como fallback seguro)
+            await client.append('INBOX', buffer, ['\\Draft']);
+            console.log(`[Ghostwriter] Borrador guardado exitosamente para ${fromEmail}.`);
+          } catch(err) {
+            console.error('[Ghostwriter] Error creando borrador:', err.message);
+          }
+        }
       }
 
-      try {
-        fs.writeFileSync(cacheFile, JSON.stringify(catCache, null, 2));
-      } catch (err) {
-        console.warn('Could not write cache file (Vercel read-only FS):', err.message);
-      }
+      fs.writeFileSync(cacheFile, JSON.stringify(catCache, null, 2));
     } finally {
       lock.release();
     }

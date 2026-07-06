@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { getAppUrl } from '@/lib/appUrl';
-import { PRODUCTION_HOST } from '@/lib/productionHost';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,27 +21,21 @@ export async function GET(request) {
     projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || null,
     appUrl,
     requestHost,
-    productionHost: PRODUCTION_HOST,
     adminEmail: process.env.ADMIN_EMAIL || 'jomstudiovzla@gmail.com',
-    hints: buildHints({ firebaseReady, sessionReady, appUrl, requestHost }),
+    hints: buildHints({ firebaseReady, sessionReady, appUrl }),
   });
 }
 
-function buildHints({ firebaseReady, sessionReady, appUrl, requestHost }) {
+function buildHints({ firebaseReady, sessionReady, appUrl }) {
   const hints = [];
   if (!firebaseReady) {
-    hints.push('Añade NEXT_PUBLIC_FIREBASE_* en Vercel y haz Redeploy');
+    hints.push('Faltan variables NEXT_PUBLIC_FIREBASE_* en .env');
   }
   if (!sessionReady) {
-    hints.push('Añade SESSION_SECRET (mín. 32 caracteres) en Vercel');
+    hints.push('Añade SESSION_SECRET (mín. 32 caracteres) en .env');
   }
   if (appUrl.includes('localhost')) {
-    hints.push(`En producción define NEXT_PUBLIC_APP_URL=https://${PRODUCTION_HOST}`);
-  }
-  const host = requestHost || appUrl.replace(/^https?:\/\//, '').split(':')[0];
-  // Eliminado el hint de dominio autorizado por petición del usuario
-  if (host && host.endsWith('.vercel.app') && host !== PRODUCTION_HOST) {
-    hints.push(`Usa siempre https://${PRODUCTION_HOST}/login (los previews de Vercel no sirven para Google)`);
+    hints.push(`Define NEXT_PUBLIC_APP_URL para producción`);
   }
   return hints;
 }
