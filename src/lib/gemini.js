@@ -290,3 +290,55 @@ ${emailBody.slice(0, 4000)}
     throw error;
   }
 }
+
+export async function generateWhatsAppDraft({ lead }) {
+  const apiKey = getGeminiApiKey();
+  const company = lead?.nombre_negocio || 'su negocio';
+  const gap = lead?.gap_detectado || 'mejoras en su presencia digital';
+  
+  if (!apiKey) {
+    return {
+      body: `Hola, ¿cómo están? Me comunico de parte de JOM Studio por el puesto/proyecto de ${lead.nicho || 'desarrollo/diseño'} que tienen abierto en ${company}. ¿Cuándo tendrían 5 minutos para conversar? Un saludo, Jesús Omar Martínez.`,
+      generatedByAi: false
+    };
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+  const prompt = `Eres el cerrador de ventas y director creativo de JOM Studio, Jesús Omar Martínez. 
+Redacta un mensaje de WhatsApp directo, profesional y corto (máximo 3 párrafos cortos) para contactar a un lead frío/cliente potencial.
+
+Reglas de WhatsApp de JOM Studio:
+- Tono directo, persuasivo e informal pero sumamente profesional.
+- Español natural de Latinoamérica (Venezuela/LATAM).
+- Sin lenguaje corporativo aburrido ni rodeos.
+- Menciona brevemente el puesto o necesidad detectada (${gap}).
+- Ofrece una auditoría rápida o una llamada directa de 10 minutos.
+- Incluye un saludo directo al grano y firma al final como "Jesús Omar Martínez, Creative Director de JOM Studio".
+- Usa emojis con extrema moderación (máximo 1 o 2 en todo el mensaje, por ejemplo un check o un saludo).
+- Mantén el formato legible con espacios entre párrafos para lectura móvil rápida.
+
+Datos de la empresa:
+Nombre de negocio: ${company}
+Nicho de servicio: ${lead.nicho || 'General'}
+Gap detectado: ${gap}
+
+Redacta únicamente el cuerpo del mensaje de WhatsApp.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+    });
+    
+    return {
+      body: response.text?.trim() || '',
+      generatedByAi: true
+    };
+  } catch (error) {
+    console.error('[JOM CRM] Error generando WhatsApp draft:', error.message);
+    return {
+      body: `Hola, ¿cómo están? Me comunico de parte de JOM Studio por el puesto/proyecto de ${lead.nicho || 'desarrollo/diseño'} que tienen abierto en ${company}. ¿Cuándo tendrían 5 minutos para conversar? Un saludo, Jesús Omar Martínez.`,
+      generatedByAi: false
+    };
+  }
+}

@@ -3,7 +3,7 @@ import { updateLeadState } from '@/lib/leadsStore';
 
 export async function POST(request) {
   try {
-    const { nombre_negocio, nuevo_estado } = await request.json();
+    const { nombre_negocio, nuevo_estado, extra = {} } = await request.json();
 
     if (!nombre_negocio || !nuevo_estado) {
       return NextResponse.json(
@@ -12,10 +12,14 @@ export async function POST(request) {
       );
     }
 
-    const updated = await updateLeadState(nombre_negocio, nuevo_estado);
+    const updated = await updateLeadState(nombre_negocio, nuevo_estado, extra);
 
     if (!updated) {
       return NextResponse.json({ success: false, error: 'Lead no encontrado' }, { status: 404 });
+    }
+
+    if (global.io) {
+      global.io.emit('leads_updated');
     }
 
     return NextResponse.json({ success: true, message: `Estado actualizado a ${nuevo_estado}` });

@@ -188,6 +188,10 @@ export async function GET() {
 
     const added = appendEnrichedLeads(newLeads);
 
+    if (global.io) {
+      global.io.emit('leads_updated');
+    }
+
     return NextResponse.json({
       success: true,
       added: added.length,

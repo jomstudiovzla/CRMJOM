@@ -10,6 +10,7 @@ module.exports = function initBackgroundTasks(httpServer) {
   const io = new Server(httpServer, {
     cors: { origin: '*' }
   });
+  global.io = io;
 
   io.on('connection', (socket) => {
     console.log('[Socket.io] Cliente conectado:', socket.id);

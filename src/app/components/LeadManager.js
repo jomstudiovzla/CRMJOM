@@ -6,6 +6,7 @@ import GmailSetupBanner from './GmailSetupBanner';
 import AiStatusBanner from './AiStatusBanner';
 
 import AddLeadModal from './AddLeadModal';
+import WhatsAppModal from './WhatsAppModal';
 import './LeadManager.css';
 
 const PIPELINE_FILTERS = [
@@ -46,6 +47,7 @@ function getPaquete(lead) {
 }
 
 export default function LeadManager({ leads, onUpdate }) {
+  const [localLeads, setLocalLeads] = useState(leads);
   const [pipelineFilter, setPipelineFilter] = useState('all');
   const [nicheFilter, setNicheFilter] = useState('all');
   const [langFilter, setLangFilter] = useState('all');
@@ -54,6 +56,13 @@ export default function LeadManager({ leads, onUpdate }) {
   const [feedback, setFeedback] = useState(null);
   const [emailStatus, setEmailStatus] = useState(null);
   const [isAddLeadOpen, setIsAddLeadOpen] = useState(false);
+  const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
+  const [selectedWaLead, setSelectedWaLead] = useState(null);
+
+  useEffect(() => {
+    setLocalLeads(leads);
+  }, [leads]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -66,7 +75,7 @@ export default function LeadManager({ leads, onUpdate }) {
     return () => { cancelled = true; };
   }, []);
 
-  const filteredLeads = leads.filter((lead) => {
+  const filteredLeads = localLeads.filter((lead) => {
     const paquete = getPaquete(lead);
     const aiCat = lead.categoria_ia || lead.estado_pipeline;
 
@@ -294,6 +303,17 @@ export default function LeadManager({ leads, onUpdate }) {
                       📧 Email
                     </a>
                   )}
+                  <button
+                    className="btn-secondary btn-sm"
+                    onClick={() => {
+                      setSelectedWaLead(lead);
+                      setIsWhatsAppOpen(true);
+                    }}
+                    style={{ marginLeft: '4px' }}
+                    title="Enviar Pitch por WhatsApp"
+                  >
+                    💬 WhatsApp
+                  </button>
                   {lead.link && !lead.email && (
                     <a
                       className="btn-secondary btn-sm"
@@ -331,6 +351,16 @@ export default function LeadManager({ leads, onUpdate }) {
         isOpen={isAddLeadOpen}
         onClose={() => setIsAddLeadOpen(false)}
         onSaved={onUpdate}
+      />
+
+      <WhatsAppModal
+        isOpen={isWhatsAppOpen}
+        onClose={() => {
+          setIsWhatsAppOpen(false);
+          setSelectedWaLead(null);
+        }}
+        lead={selectedWaLead}
+        onSent={onUpdate}
       />
     </div>
   );

@@ -54,6 +54,10 @@ export async function POST(request) {
       });
     }
 
+    if (global.io) {
+      global.io.emit('leads_updated');
+    }
+
     return NextResponse.json({
       success: true,
       message: '✅ Lead guardado exitosamente.',
