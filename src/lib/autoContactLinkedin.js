@@ -1,195 +1,133 @@
-import puppeteer from 'puppeteer';
+import { openTab, closeTab } from './browserManager';
 import { updateLeadState } from './leadsStore';
 import { GoogleGenAI } from '@google/genai';
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export async function autoContactLinkedin(lead, username, password, headlessOverride = false) {
+async function isLinkedInLoggedIn(page) {
+  try {
+    await page.goto('https://www.linkedin.com/feed/', { waitUntil: 'domcontentloaded', timeout: 12000 });
+    await delay(1500);
+    const url = page.url();
+    return !url.includes('/login') && !url.includes('/authwall');
+  } catch { return false; }
+}
+
+export async function autoContactLinkedin(lead, _u, _p, headlessOverride = false) {
   if (!lead.link) throw new Error('El lead no tiene un enlace de postulación.');
-  if (!username || !password) throw new Error('Credenciales de LinkedIn no configuradas.');
 
-  console.log(`[LinkedIn Bot] Iniciando Puppeteer para LinkedIn (Headless: ${headlessOverride})`);
+  console.log(`[LinkedIn Bot] Usando Chrome compartido para LinkedIn...`);
 
-  const browser = await puppeteer.launch({
-    headless: headlessOverride ? 'new' : false,
-    defaultViewport: null,
-    args: headlessOverride ? [] : ['--start-maximized']
-  });
-
-  const page = await browser.newPage();
+  // Usa el Chrome compartido — no lanza un nuevo browser
+  const { page } = await openTab(null, !headlessOverride);
 
   try {
-    // 1. Ir a login de LinkedIn
-    await page.goto('https://www.linkedin.com/login', { waitUntil: 'networkidle2' });
-
-    // Ingresar credenciales
-    await page.waitForSelector('#username', { timeout: 10000 });
-    await page.type('#username', username, { delay: 50 });
-    await page.type('#password', password, { delay: 50 });
-    
-    // Clic entrar
-    await page.click('button[type="submit"]');
-    
-    // Esperar a que pase la verificación / login
-    // Si aparece PIN o captcha, el usuario lo resuelve en pantalla porque headless = false
-    await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 });
-    await delay(3000);
-
-    // 2. Ir al enlace del trabajo
-    await page.goto(lead.link, { waitUntil: 'networkidle2' });
-    await delay(3000);
-
-    // 3. Buscar el botón de "Easy Apply" / "Solicitud sencilla"
-    // Los selectores comunes son .jobs-apply-button o botón con texto descriptivo
-    const applyButtonSelector = '.jobs-apply-button, button.jobs-apply-button';
-    const hasApplyBtn = await page.$(applyButtonSelector);
-
-    if (!hasApplyBtn) {
-      throw new Error('No se encontró el botón de "Solicitud Sencilla" (Easy Apply) en esta oferta de LinkedIn.');
+    // ── Verificar sesión ───────────────────────────────────────────────────
+    const logged = await isLinkedInLoggedIn(page);
+    if (!logged) {
+      console.log('[LinkedIn Bot] Sin sesión. Abre LinkedIn en el Chrome compartido y haz login.');
+      await page.goto('https://www.linkedin.com/login', { waitUntil: 'networkidle2' });
+      // Espera hasta 2 minutos para que el usuario complete el login manualmente
+      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 120000 }).catch(() => {});
+      await delay(2000);
+    } else {
+      console.log('[LinkedIn Bot] ✅ Sesión activa de LinkedIn en Chrome compartido.');
     }
 
-    await page.click(applyButtonSelector);
+    // ── Ir a la oferta ─────────────────────────────────────────────────────
+    await page.goto(lead.link, { waitUntil: 'networkidle2', timeout: 20000 });
+    await delay(3000);
+
+    // ── Botón Easy Apply ───────────────────────────────────────────────────
+    const applyBtn = await page.$('.jobs-apply-button, button.jobs-apply-button');
+    if (!applyBtn) throw new Error('No se encontró botón "Easy Apply" en esta oferta.');
+    await applyBtn.click();
     await delay(2000);
 
-    // 4. Procesar el modal paso a paso (Formulario de postulación)
+    // ── Procesar formulario paso a paso con Gemini ─────────────────────────
+    let pitch = 'Postulación en LinkedIn Easy Apply.';
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     let isFinished = false;
     let attempts = 0;
-    const maxSteps = 10; // límite de pasos
-    let appliedPitch = 'Postulación rápida en LinkedIn (Easy Apply).';
 
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
-    while (!isFinished && attempts < maxSteps) {
+    while (!isFinished && attempts < 10) {
       attempts++;
 
-      // Buscar si hay preguntas en el paso actual
-      const formQuestions = await page.evaluate(() => {
-        const labels = Array.from(document.querySelectorAll('label'));
-        return labels.map(l => ({
+      // Responder preguntas del formulario con Gemini
+      const questions = await page.evaluate(() =>
+        Array.from(document.querySelectorAll('label')).map(l => ({
           text: l.textContent?.trim() || '',
           htmlFor: l.getAttribute('for') || ''
-        })).filter(q => q.text.length > 0);
-      });
+        })).filter(q => q.text.length > 0)
+      );
 
-      // Responder preguntas con Gemini si hay alguna
-      for (const q of formQuestions) {
-        if (q.htmlFor) {
-          const inputEl = await page.$(`#${q.htmlFor}, [name="${q.htmlFor}"]`);
-          if (inputEl) {
-            const val = await page.evaluate(el => el.value, inputEl);
-            if (!val || val.trim() === '') {
-              // Consultar a Gemini la respuesta más adecuada según la pregunta
-              const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: `Pregunta de postulación de LinkedIn: "${q.text}".
-Basado en que soy Jesús Omar Martínez, Creative Director de JOM Studio con 5 años de experiencia en desarrollo creativo web premium (Next.js, WebGL, React, CSS), responde la pregunta de forma ultra corta (máximo 1 o 2 palabras o un número). Si es experiencia pon un número entre 3 y 5. Si es sí/no responde 'Yes' o 'Sí'.`,
-              });
-
-              const answer = response.text?.trim() || 'Yes';
-              await page.type(`#${q.htmlFor}`, answer, { delay: 30 });
-            }
-          }
-        }
+      for (const q of questions) {
+        if (!q.htmlFor) continue;
+        const input = await page.$(`#${q.htmlFor}, [name="${q.htmlFor}"]`);
+        if (!input) continue;
+        const val = await page.evaluate(el => el.value, input);
+        if (val?.trim()) continue;
+        const r = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: `Pregunta de postulación LinkedIn: "${q.text}". Soy Jesús Omar Martínez, 5 años en desarrollo web premium. Responde MUY corto (1-2 palabras o número). Si es sí/no: "Sí". Si es años de experiencia: "4".`,
+        });
+        await page.type(`#${q.htmlFor}`, r.text?.trim() || 'Sí', { delay: 30 });
       }
 
-      // Buscar si hay textarea (Carta de presentación / Cover Letter) en este paso
+      // Carta de presentación
       const textarea = await page.$('textarea');
       if (textarea) {
         const val = await page.evaluate(el => el.value, textarea);
-        if (!val || val.trim() === '') {
-          console.log('[LinkedIn Bot] Detectado campo de mensaje/carta de presentación. Generando con Gemini...');
-          const prompt = `Redacta una postulación y propuesta de valor de desarrollo/diseño web para el puesto de "${lead.nombre_negocio}".
-Detalles de la oferta/empresa: "${lead.gap_detectado || ''}".
-Nicho del cliente: "${lead.nicho || ''}".
-
-La propuesta debe ser de parte de Jesús Omar Martínez, Creative Director de JOM Studio (desarrollo creativo web premium, alta gama, e-commerce, WebGL).
-Debe:
-1. Ser corta, directa y sumamente persuasiva (máximo 120 palabras).
-2. Explicar específicamente por qué les escribimos basado en su oferta/brecha tecnológica.
-3. Indicar por qué podemos trabajar juntos y cómo nuestra experiencia premium aporta valor real.
-4. Firmar como Jesús Omar Martínez, Creative Director de JOM Studio.
-Sin emojis excesivos y con tono profesional pero atrevido y directo.`;
-
-          const response = await ai.models.generateContent({
+        if (!val?.trim()) {
+          const r = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: prompt,
+            contents: `Carta de presentación (máx 120 palabras) para oferta en "${lead.nombre_negocio}". Contexto: "${lead.gap_detectado || ''}". Soy Jesús Omar Martínez, Creative Director de JOM Studio (web premium, e-commerce, WebGL). Firma: "Jesús Omar Martínez — JOM Studio".`,
           });
-
-          appliedPitch = response.text?.trim() || 'Hola, vi su oferta...';
-          await page.type('textarea', appliedPitch, { delay: 10 });
-          await delay(1000);
+          pitch = r.text?.trim() || pitch;
+          await page.type('textarea', pitch, { delay: 10 });
+          await delay(800);
         }
       }
 
-      // Buscar botones de navegación
-      const buttons = await page.$$('button');
-      let clickedNav = false;
-
-      for (const btn of buttons) {
-        const text = await page.evaluate(el => el.textContent?.trim().toLowerCase(), btn);
-        const ariaLabel = await page.evaluate(el => el.getAttribute('aria-label')?.toLowerCase() || '', btn);
-
-        // Si es el botón de enviar
-        if (text.includes('enviar') || text.includes('submit') || ariaLabel.includes('submit') || ariaLabel.includes('enviar')) {
-          await btn.click();
-          isFinished = true;
-          clickedNav = true;
-          break;
+      // Navegación del formulario
+      let navigated = false;
+      for (const btn of await page.$$('button')) {
+        const t = await page.evaluate(el => el.textContent?.trim().toLowerCase(), btn);
+        const a = await page.evaluate(el => el.getAttribute('aria-label')?.toLowerCase() || '', btn);
+        if (t.includes('enviar') || t.includes('submit') || a.includes('submit')) {
+          await btn.click(); isFinished = true; navigated = true; break;
         }
-
-        // Si es el botón de siguiente/revisar
-        if (text.includes('siguiente') || text.includes('next') || text.includes('revisar') || text.includes('review') || ariaLabel.includes('next') || ariaLabel.includes('siguiente')) {
-          await btn.click();
-          clickedNav = true;
-          await delay(2000);
-          break;
+        if (t.includes('siguiente') || t.includes('next') || t.includes('revisar') || t.includes('review')) {
+          await btn.click(); navigated = true; await delay(2000); break;
         }
       }
 
-      if (!clickedNav) {
-        // Si no encontramos ningún botón que haga avanzar, cerramos la postulación
-        throw new Error('No se detectaron botones de avance en el formulario de LinkedIn.');
-      }
+      if (!navigated) break;
     }
 
     await delay(4000);
 
-    // Actualizar estado del lead a contactado
+    // ── Registrar en CRM ───────────────────────────────────────────────────
     await updateLeadState(lead.nombre_negocio, 'contactado', {
       fecha_contacto: new Date().toISOString(),
-      origen: 'LinkedIn Auto-Apply'
+      origen: 'LinkedIn Easy Apply (Chrome compartido)',
     });
 
-    // Guardar registro sintético en el módulo de correos
     try {
       const { upsertMessage } = require('./emailStore');
       upsertMessage(lead, {
-        id: `auto_li_${Date.now()}`,
-        subject: `🤖 Auto-Postulado (LinkedIn): ${lead.nombre_negocio || 'Vacante'}`,
-        body: `Postulación completada de forma 100% automática en LinkedIn (Easy Apply).\n\nPropuesta enviada:\n\n${appliedPitch}`,
-        sentAt: new Date().toISOString(),
-        direction: 'outbound',
-        status: 'sent',
-        from: 'Auto-Postulador'
+        id: `li_${Date.now()}`,
+        subject: `🤖 Auto-Postulado (LinkedIn): ${lead.nombre_negocio}`,
+        body: `✅ Postulación LinkedIn Easy Apply completada.\n\n${pitch}`,
+        sentAt: new Date().toISOString(), direction: 'outbound', status: 'sent', from: 'Auto-Postulador JOM',
       });
-      if (global.io) {
-        global.io.emit('emails_updated');
-      }
-    } catch (e) {
-      console.error('[LinkedIn Bot] Error guardando registro de correo de postulación:', e.message);
-    }
+    } catch {}
 
-    if (global.io) {
-      global.io.emit('leads_updated');
-    }
+    if (global.io) { global.io.emit('leads_updated'); global.io.emit('emails_updated'); }
+    console.log('[LinkedIn Bot] 🎉 Postulación completada!');
+    return { success: true, message: '¡Postulación LinkedIn completada!' };
 
-    return { success: true, message: '¡Postulación por LinkedIn (Easy Apply) completada!' };
-
-  } catch (err) {
-    console.error('[LinkedIn Bot] Error:', err.message);
-    throw err;
   } finally {
-    await delay(3000);
-    await browser.close();
+    await closeTab(page); // Solo cierra pestaña, NO el browser compartido
   }
 }

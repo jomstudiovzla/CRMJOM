@@ -43,6 +43,37 @@ export default function MailsViewer({ leads, onUpdate, syncTrigger = 0 }) {
   const [pipelineStep, setPipelineStep] = useState(null);
   const [auditPreview, setAuditPreview] = useState(null);
 
+  // Session / Chrome compartido
+  const [sessionStatus, setSessionStatus] = useState({ running: false, openTabs: 0 });
+  const [sessionLoading, setSessionLoading] = useState(false);
+
+  const fetchSessionStatus = useCallback(async () => {
+    try {
+      const r = await fetch('/api/session');
+      if (r.ok) setSessionStatus(await r.json());
+    } catch {}
+  }, []);
+
+  const openAllSessions = useCallback(async () => {
+    setSessionLoading(true);
+    try {
+      const r = await fetch('/api/session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'open' }) });
+      const data = await r.json();
+      if (data.success) {
+        setTimeout(fetchSessionStatus, 3000);
+        setFeedback({ type: 'success', msg: '✅ Chrome abierto con todas las plataformas' });
+      }
+    } catch (e) { setFeedback({ type: 'error', msg: 'Error abriendo Chrome: ' + e.message }); }
+    setSessionLoading(false);
+  }, [fetchSessionStatus]);
+
+  const openOnePlatform = useCallback(async (platform) => {
+    try {
+      await fetch('/api/session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'open-platform', platform }) });
+      setTimeout(fetchSessionStatus, 2000);
+    } catch {}
+  }, [fetchSessionStatus]);
+
   // Fetch all data independently
   const fetchData = useCallback(async () => {
     // 1. Fetch Threads (Fast)
@@ -89,6 +120,15 @@ export default function MailsViewer({ leads, onUpdate, syncTrigger = 0 }) {
         .catch(() => {});
     }
   }, [syncTrigger]);
+
+  // Polling de estado del Chrome compartido cada 10s
+  useEffect(() => {
+    fetchSessionStatus();
+    const interval = setInterval(fetchSessionStatus, 10000);
+    return () => clearInterval(interval);
+  }, [fetchSessionStatus]);
+
+
 
 
   useEffect(() => {
@@ -689,6 +729,29 @@ export default function MailsViewer({ leads, onUpdate, syncTrigger = 0 }) {
           <span>🤖 Spam / Portales</span>
           <span className="folder-badge">{isSyncing && activeFolder === 'spam' ? '⏳' : displaySpamCount}</span>
         </button>
+        {/* ── PANEL DE SESIONES EN TIEMPO REAL ─────────────────────── */}
+        <div className="session-panel">
+          <div className="session-panel-header">
+            <span>🌐 Sesiones</span>
+            <span className={`session-dot ${sessionStatus.running ? 'online' : 'offline'}`} title={sessionStatus.running ? `Chrome activo · ${sessionStatus.openTabs} pestañas` : 'Chrome desconectado'} />
+          </div>
+          <button
+            className="session-open-btn"
+            onClick={openAllSessions}
+            disabled={sessionLoading}
+          >
+            {sessionLoading ? '⏳ Abriendo...' : '🚀 Abrir todas las sesiones'}
+          </button>
+          <div className="session-platforms">
+            {[['computrabajo','💼','Computrabajo'],['linkedin','🔗','LinkedIn'],['gmail','📧','Gmail'],['whatsapp','💬','WhatsApp']].map(([id, icon, label]) => (
+              <button key={id} className="session-platform-btn" onClick={() => openOnePlatform(id)} title={`Abrir ${label}`}>
+                {icon} {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        {/* ── FIN PANEL ─────────────────────────────────────────────── */}
+
         <button 
           className={`folder-btn ${activeFolder === 'postulaciones' ? 'active' : ''}`}
           onClick={() => { setActiveFolder('postulaciones'); setSelectedItem(null); }}
