@@ -107,17 +107,17 @@ export default function LoginPage() {
 
   const handleFirebaseLogin = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setLocalError('');
 
     if (!isFirebaseConfigured() || !auth) {
       setLocalError('Firebase no configurado. Pega NEXT_PUBLIC_FIREBASE_* en Vercel y haz Redeploy.');
-      setLoading(false);
       return;
     }
 
     try {
       const result = await signInWithPopup(auth, googleProvider);
+      
+      setLoading(true);
+      setLocalError('');
       await handleGoogleUser(result.user, setLocalError, setLoading);
     } catch (err) {
       console.error(err);
@@ -127,16 +127,11 @@ export default function LoginPage() {
         err.code === 'auth/cancelled-popup-request';
 
       if (popupBlocked) {
-        try {
-          await signInWithRedirect(auth, googleProvider);
-          return;
-        } catch (redirectErr) {
-          setLocalError(FIREBASE_ERRORS[redirectErr.code] || redirectErr.message);
-        }
+        setLocalError('El navegador bloqueó la ventana de Google. Por favor, desactiva tu bloqueador de anuncios (AdBlock, uBlock, Brave Shields) o permite ventanas emergentes e intenta de nuevo.');
       } else {
         const host = window.location.hostname;
         const domainMsg = err.code === 'auth/unauthorized-domain'
-          ? `Dominio "${host}" no autorizado. Firebase → Authorized domains → añade "${host}"`
+          ? `Dominio "${host}" no autorizado en Firebase.`
           : null;
         setLocalError(
           domainMsg ||
