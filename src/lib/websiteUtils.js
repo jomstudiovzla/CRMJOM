@@ -49,7 +49,7 @@ export async function fetchWebsiteText(url) {
     const res = await fetch(normalized, {
       signal: controller.signal,
       headers: {
-        'User-Agent': 'JOM-Studio-CRM/1.0 (Website Audit Bot)',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36',
         Accept: 'text/html,application/xhtml+xml',
       },
       redirect: 'follow',
@@ -61,12 +61,23 @@ export async function fetchWebsiteText(url) {
 
     const contentType = res.headers.get('content-type') || '';
     const raw = await res.text();
+    const contactInfo = extractContactInfo(raw);
 
     if (contentType.includes('text/html') || raw.includes('<html')) {
-      return { url: normalized, text: stripHtmlToText(raw) };
+      return { 
+        url: normalized, 
+        text: stripHtmlToText(raw),
+        email: contactInfo.email,
+        telefono: contactInfo.telefono
+      };
     }
 
-    return { url: normalized, text: raw.slice(0, MAX_TEXT_LENGTH) };
+    return { 
+      url: normalized, 
+      text: raw.slice(0, MAX_TEXT_LENGTH),
+      email: contactInfo.email,
+      telefono: contactInfo.telefono
+    };
   } catch (error) {
     if (error.name === 'AbortError') {
       throw new Error(`Timeout al cargar ${normalized}`);
@@ -75,6 +86,46 @@ export async function fetchWebsiteText(url) {
   } finally {
     clearTimeout(timer);
   }
+}
+
+export function extractContactInfo(html) {
+  const info = {
+    email: '',
+    telefono: ''
+  };
+
+  if (!html) return info;
+
+  // 1. Buscar emails en enlaces mailto: o texto plano
+  const mailtoMatch = html.match(/href="mailto:([^"]+)"/i);
+  if (mailtoMatch) {
+    info.email = mailtoMatch[1].split('?')[0].trim();
+  } else {
+    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+    const emails = html.match(emailRegex);
+    if (emails) {
+      // Filtrar extensiones comunes falsas
+      const clean = emails.filter(e => !/\.(png|jpg|jpeg|gif|webp|svg|js|css|woff)$/i.test(e));
+      if (clean.length > 0) info.email = clean[0];
+    }
+  }
+
+  // 2. Buscar teléfonos en enlaces tel: o wa.me o api.whatsapp
+  const telMatch = html.match(/href="tel:([^"\s>]+)"/i);
+  if (telMatch) {
+    info.telefono = telMatch[1].trim();
+  } else {
+    // Buscar links de WhatsApp con código de país
+    const waMatch = html.match(/href="https:\/\/(wa\.me|api\.whatsapp\.com\/send\?phone=)([^"&]+)"/i);
+    if (waMatch) {
+      const extracted = waMatch[2].replace(/[^0-9]/g, '');
+      if (extracted.length >= 8) {
+        info.telefono = '+' + extracted;
+      }
+    }
+  }
+
+  return info;
 }
 
 export function slugifyCompanyName(name) {

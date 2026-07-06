@@ -18,7 +18,7 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: 'URL inválida' }, { status: 400 });
     }
 
-    const { url: fetchedUrl, text } = await fetchWebsiteText(normalized);
+    const { url: fetchedUrl, text, email, telefono } = await fetchWebsiteText(normalized);
 
     if (!text || text.length < 30) {
       return NextResponse.json(
@@ -42,6 +42,8 @@ export async function POST(request) {
         gap_detectado: gapFull,
         web: fetchedUrl,
         solucion_jom: audit.solucion_jom,
+        email: email || undefined,
+        telefono: telefono || undefined
       });
     }
 
@@ -56,6 +58,8 @@ export async function POST(request) {
         gap_detectado: gapFull,
         solucion_jom: audit.solucion_jom,
         generatedByAi: audit.generatedByAi,
+        email: email || '',
+        telefono: telefono || ''
       },
       message: '🕵️ Auditoría web completada',
     });

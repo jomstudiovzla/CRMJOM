@@ -132,6 +132,29 @@ export default function LeadManager({ leads, onUpdate }) {
     setLoadingAction(null);
   };
 
+  const handleAutoContact = async (lead) => {
+    setLoadingAction(`auto-${lead.nombre_negocio}`);
+    setFeedback(null);
+    try {
+      const res = await fetch('/api/leads/auto-contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre_negocio: lead.nombre_negocio }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setFeedback({ type: 'success', text: `🤖 ${data.message}` });
+        onUpdate();
+      } else {
+        setFeedback({ type: 'error', text: data.error });
+      }
+    } catch (e) {
+      setFeedback({ type: 'error', text: e.message });
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
   const updateState = async (nombre_negocio, nuevo_estado) => {
     // Optimistic UI update
     setLocalLeads(prev => prev.map(l => l.nombre_negocio === nombre_negocio ? { ...l, estado_pipeline: nuevo_estado } : l));
@@ -314,7 +337,7 @@ export default function LeadManager({ leads, onUpdate }) {
                   >
                     💬 WhatsApp
                   </button>
-                  {lead.link && !lead.email && (
+                  {lead.link && !lead.email && !lead.link.includes('computrabajo') && (
                     <a
                       className="btn-secondary btn-sm"
                       href={lead.link}
@@ -323,6 +346,17 @@ export default function LeadManager({ leads, onUpdate }) {
                     >
                       🔗 Upwork
                     </a>
+                  )}
+                  {lead.link && lead.link.includes('computrabajo') && (
+                    <button
+                      className="btn-primary btn-sm"
+                      onClick={() => handleAutoContact(lead)}
+                      disabled={loadingAction !== null}
+                      style={{ marginLeft: '4px', background: '#2563eb', borderColor: '#2563eb' }}
+                      title="Postularse automáticamente con Puppeteer"
+                    >
+                      {loadingAction === `auto-${lead.nombre_negocio}` ? '🤖 Postulando...' : '🤖 Auto-Aplicar'}
+                    </button>
                   )}
                   {!AI_CATEGORY_KEYS.includes(lead.estado_pipeline) &&
                     lead.estado_pipeline !== 'contactado' &&

@@ -158,6 +158,8 @@ export function updateLeadGap(nombre_negocio, updates = {}) {
       if (updates.gap_detectado) lead.gap_detectado = updates.gap_detectado;
       if (updates.web) lead.web = updates.web;
       if (updates.solucion_jom) lead.solucion_jom = updates.solucion_jom;
+      if (updates.email) lead.email = updates.email;
+      if (updates.telefono) lead.telefono = updates.telefono;
       updated = true;
       break;
     }
@@ -173,6 +175,8 @@ export function updateLeadGap(nombre_negocio, updates = {}) {
       if (updates.gap_detectado) lead.gap_detectado = updates.gap_detectado;
       if (updates.web) lead.web = updates.web;
       if (updates.solucion_jom) lead.solucion_jom = updates.solucion_jom;
+      if (updates.email) lead.email = updates.email;
+      if (updates.telefono) lead.telefono = updates.telefono;
       lead.fecha_actualizacion = new Date().toISOString();
       jsonUpdated = true;
       found = true;
