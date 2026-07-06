@@ -160,6 +160,10 @@ export function updateLeadGap(nombre_negocio, updates = {}) {
       if (updates.solucion_jom) lead.solucion_jom = updates.solucion_jom;
       if (updates.email) lead.email = updates.email;
       if (updates.telefono) lead.telefono = updates.telefono;
+      if (updates.descripcion_empresa) lead.descripcion_empresa = updates.descripcion_empresa;
+      if (updates.historia) lead.historia = updates.historia;
+      if (updates.paleta_colores) lead.paleta_colores = updates.paleta_colores;
+      if (updates.nicho_detectado) lead.nicho_detectado = updates.nicho_detectado;
       updated = true;
       break;
     }
@@ -177,6 +181,10 @@ export function updateLeadGap(nombre_negocio, updates = {}) {
       if (updates.solucion_jom) lead.solucion_jom = updates.solucion_jom;
       if (updates.email) lead.email = updates.email;
       if (updates.telefono) lead.telefono = updates.telefono;
+      if (updates.descripcion_empresa) lead.descripcion_empresa = updates.descripcion_empresa;
+      if (updates.historia) lead.historia = updates.historia;
+      if (updates.paleta_colores) lead.paleta_colores = updates.paleta_colores;
+      if (updates.nicho_detectado) lead.nicho_detectado = updates.nicho_detectado;
       lead.fecha_actualizacion = new Date().toISOString();
       jsonUpdated = true;
       found = true;
@@ -191,6 +199,10 @@ export function updateLeadGap(nombre_negocio, updates = {}) {
       gap_detectado: updates.gap_detectado || '',
       web: updates.web || '',
       solucion_jom: updates.solucion_jom || '',
+      descripcion_empresa: updates.descripcion_empresa || '',
+      historia: updates.historia || '',
+      paleta_colores: updates.paleta_colores || '',
+      nicho_detectado: updates.nicho_detectado || '',
       fecha_actualizacion: new Date().toISOString(),
     });
     jsonUpdated = true;

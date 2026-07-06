@@ -43,7 +43,11 @@ export async function POST(request) {
         web: fetchedUrl,
         solucion_jom: audit.solucion_jom,
         email: email || undefined,
-        telefono: telefono || undefined
+        telefono: telefono || undefined,
+        descripcion_empresa: audit.descripcion_empresa,
+        historia: audit.historia,
+        paleta_colores: audit.paleta_colores,
+        nicho_detectado: audit.nicho_detectado
       });
     }
 
@@ -59,7 +63,11 @@ export async function POST(request) {
         solucion_jom: audit.solucion_jom,
         generatedByAi: audit.generatedByAi,
         email: email || '',
-        telefono: telefono || ''
+        telefono: telefono || '',
+        descripcion_empresa: audit.descripcion_empresa || '',
+        historia: audit.historia || '',
+        paleta_colores: audit.paleta_colores || '',
+        nicho_detectado: audit.nicho_detectado || ''
       },
       message: '🕵️ Auditoría web completada',
     });

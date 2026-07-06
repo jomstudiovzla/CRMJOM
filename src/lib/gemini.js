@@ -162,6 +162,10 @@ export async function auditWebsiteForGap({ url, text, companyName }) {
   const fallback = {
     gap_detectado: `La web de ${company} no comunica con claridad su propuesta de valor — pierde conversiones en la primera visita.`,
     solucion_jom: 'Auditoría UI/UX + rediseño web con CASE_020 (Next.js, conversión optimizada).',
+    descripcion_empresa: 'Empresa proveedora de servicios y contenidos.',
+    historia: 'Trayectoria activa',
+    paleta_colores: 'Por definir / colores corporativos estándar',
+    nicho_detectado: 'Servicios',
     generatedByAi: false,
   };
 
@@ -170,24 +174,23 @@ export async function auditWebsiteForGap({ url, text, companyName }) {
   }
 
   const ai = new GoogleGenAI({ apiKey });
-  const prompt = `Eres un experto en UI/UX y Marketing Digital trabajando para JOM Studio (agencia de Digital Alchemy en Venezuela).
+  const prompt = `Eres un experto en UI/UX, branding y marketing digital B2B de JOM Studio (Digital Alchemy).
+Analiza el contenido del sitio web de "${company}" (${url}) para extraer la siguiente información de perfil.
 
-Evalúa el contenido extraído del sitio web de "${company}" (${url}).
-
-Objetivo:
-1. Detecta 1 fallo crítico (Gap) que impacte conversiones, confianza o captación de leads.
-2. Propón 1 solución concreta que JOM Studio pueda vender (desarrollo web, branding, video, plataforma).
+Responde EXCLUSIVAMENTE en formato JSON válido con la siguiente estructura (no agregues bloque de código markdown, solo el JSON plano):
+{
+  "gap_detectado": "Fallo crítico directo de 1 oración relacionado con conversiones o UI/UX",
+  "solucion_jom": "Servicio de JOM Studio que resuelve el gap en 1 oración",
+  "descripcion_empresa": "Resumen corto y profesional de qué es la empresa y a qué se dedica",
+  "historia": "Desde cuándo opera o su trayectoria/antigüedad si la indica (si no se especifica, pon 'Trayectoria activa' o haz una estimación)",
+  "paleta_colores": "Los colores principales de su marca observados o recomendados según su rubro (ej. Negro, oro y acentos grises)",
+  "nicho_detectado": "Nicho principal (ej. Inmobiliaria, E-commerce, Agencia, etc.)"
+}
 
 Contenido del sitio:
 """
 ${text.slice(0, 8000)}
-"""
-
-Devuelve EXCLUSIVAMENTE JSON (sin markdown):
-{
-  "gap_detectado": "1 oración directa describiendo el fallo crítico",
-  "solucion_jom": "1 oración con el servicio CASE de JOM que resuelve el gap"
-}`;
+"""`;
 
   try {
     const response = await ai.models.generateContent({
@@ -202,6 +205,10 @@ Devuelve EXCLUSIVAMENTE JSON (sin markdown):
     return {
       gap_detectado: parsed.gap_detectado || fallback.gap_detectado,
       solucion_jom: parsed.solucion_jom || fallback.solucion_jom,
+      descripcion_empresa: parsed.descripcion_empresa || fallback.descripcion_empresa,
+      historia: parsed.historia || fallback.historia,
+      paleta_colores: parsed.paleta_colores || fallback.paleta_colores,
+      nicho_detectado: parsed.nicho_detectado || fallback.nicho_detectado,
       generatedByAi: true,
     };
   } catch (error) {

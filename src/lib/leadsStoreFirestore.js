@@ -211,6 +211,10 @@ export async function updateLeadGap(nombre_negocio, updates = {}) {
       if (updates.solucion_jom) lead.solucion_jom = updates.solucion_jom;
       if (updates.email) lead.email = updates.email;
       if (updates.telefono) lead.telefono = updates.telefono;
+      if (updates.descripcion_empresa) lead.descripcion_empresa = updates.descripcion_empresa;
+      if (updates.historia) lead.historia = updates.historia;
+      if (updates.paleta_colores) lead.paleta_colores = updates.paleta_colores;
+      if (updates.nicho_detectado) lead.nicho_detectado = updates.nicho_detectado;
       lead.fecha_actualizacion = new Date().toISOString();
       found = true;
       break;

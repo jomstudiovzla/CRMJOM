@@ -7,6 +7,7 @@ import AiStatusBanner from './AiStatusBanner';
 
 import AddLeadModal from './AddLeadModal';
 import WhatsAppModal from './WhatsAppModal';
+import AuditModal from './AuditModal';
 import './LeadManager.css';
 
 const PIPELINE_FILTERS = [
@@ -58,6 +59,8 @@ export default function LeadManager({ leads, onUpdate }) {
   const [isAddLeadOpen, setIsAddLeadOpen] = useState(false);
   const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
   const [selectedWaLead, setSelectedWaLead] = useState(null);
+  const [auditResult, setAuditResult] = useState(null);
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
 
   useEffect(() => {
     setLocalLeads(leads);
@@ -121,7 +124,9 @@ export default function LeadManager({ leads, onUpdate }) {
       });
       const data = await res.json();
       if (data.success) {
-        setFeedback({ type: 'success', text: `🕵️ Gap actualizado: ${data.data.gap_detectado.slice(0, 80)}…` });
+        setFeedback({ type: 'success', text: `🕵️ Auditoría completada y guardada.` });
+        setAuditResult(data.data);
+        setIsAuditModalOpen(true);
         onUpdate();
       } else {
         setFeedback({ type: 'error', text: data.error });
@@ -410,6 +415,15 @@ export default function LeadManager({ leads, onUpdate }) {
         }}
         lead={selectedWaLead}
         onSent={onUpdate}
+      />
+
+      <AuditModal
+        isOpen={isAuditModalOpen}
+        result={auditResult}
+        onClose={() => {
+          setIsAuditModalOpen(false);
+          setAuditResult(null);
+        }}
       />
     </div>
   );

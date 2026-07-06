@@ -1,3 +1,4 @@
+import { NextResponse } from 'next/server';
 import { autoContactComputrabajo } from '@/lib/autoContactComputrabajo';
 import { autoContactLinkedin } from '@/lib/autoContactLinkedin';
 import { mergeAllLeads } from '@/lib/leadsStore';

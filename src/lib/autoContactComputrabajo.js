@@ -23,26 +23,59 @@ export async function autoContactComputrabajo(lead, username, password, headless
   const page = await browser.newPage();
 
   try {
-    // 1. Ir al login de Computrabajo
-    const loginUrl = `https://${domain}/login`;
-    await page.goto(loginUrl, { waitUntil: 'networkidle2' });
+    // 1. Ir al portal de Computrabajo (evita redirecciones directas al home)
+    const portalUrl = `https://${domain}/`;
+    await page.goto(portalUrl, { waitUntil: 'networkidle2' });
+
+    // Aceptar cookies si aparece
+    try {
+      const cookieButtons = await page.$$('button, a');
+      for (const btn of cookieButtons) {
+        const text = await page.evaluate(el => el.textContent?.trim().toLowerCase(), btn);
+        if (text.includes('acepto') || text.includes('aceptar') || text.includes('entendido')) {
+          await btn.click();
+          await delay(1000);
+          break;
+        }
+      }
+    } catch (e) {}
+
+    // Intentar ir a la página de login dando click al botón "Login" o "Ingresar"
+    let loginClicked = false;
+    const navButtons = await page.$$('a, button');
+    for (const btn of navButtons) {
+      const text = await page.evaluate(el => el.textContent?.trim().toLowerCase(), btn);
+      if (text === 'login' || text === 'ingresar' || text === 'iniciar sesión') {
+        await btn.click();
+        loginClicked = true;
+        break;
+      }
+    }
+
+    if (!loginClicked) {
+      // Si falló el clic, intentamos ir al subdominio de candidato
+      await page.goto(`https://${domain}/candidato/`, { waitUntil: 'networkidle2' });
+    } else {
+      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 15000 }).catch(() => {});
+    }
 
     // Rellenar email
-    const emailSelector = 'input[type="email"], #LoginModel_Email';
-    await page.waitForSelector(emailSelector, { timeout: 10000 });
+    const emailSelector = 'input[type="email"], input[name*="mail"], #LoginModel_Email, #Username';
+    await page.waitForSelector(emailSelector, { timeout: 15000 });
     await page.type(emailSelector, username, { delay: 50 });
 
     // Rellenar password
-    const passSelector = 'input[type="password"], #LoginModel_Password';
+    const passSelector = 'input[type="password"], input[name*="pass"], #LoginModel_Password, #Password';
+    await page.waitForSelector(passSelector, { timeout: 5000 });
     await page.type(passSelector, password, { delay: 50 });
 
     // Click ingresar
-    const submitBtn = 'button[type="submit"], #btnIngresar';
+    const submitBtn = 'button[type="submit"], #btnIngresar, button.btn-primary';
     await page.click(submitBtn);
 
     // Esperar a que loguee
-    await page.waitForNavigation({ waitUntil: 'networkidle2' });
-    await delay(2000);
+    await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 20000 });
+    await delay(3000);
 
     // 2. Ir a la oferta de trabajo
     await page.goto(lead.link, { waitUntil: 'networkidle2' });
