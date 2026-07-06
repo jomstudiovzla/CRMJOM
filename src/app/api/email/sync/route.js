@@ -101,7 +101,11 @@ export async function GET() {
         });
       }
 
-      fs.writeFileSync(cacheFile, JSON.stringify(catCache, null, 2));
+      try {
+        fs.writeFileSync(cacheFile, JSON.stringify(catCache, null, 2));
+      } catch (err) {
+        console.warn('Could not write cache file (Vercel read-only FS):', err.message);
+      }
     } finally {
       lock.release();
     }

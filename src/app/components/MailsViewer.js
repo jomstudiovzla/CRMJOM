@@ -132,6 +132,19 @@ export default function MailsViewer({ leads, onUpdate, syncTrigger = 0 }) {
     return () => { cancelled = true; };
   }, []);
 
+  const handleManualSync = () => {
+    setIsSyncing(true);
+    fetch('/api/email/sync')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) {
+          setInboxEmails(data.inbox || []);
+        }
+      })
+      .catch((e) => console.error(e))
+      .finally(() => setIsSyncing(false));
+  };
+
   // Derived lists based on folder & search
   const filteredList = useMemo(() => {
     let list = [];
@@ -669,15 +682,26 @@ export default function MailsViewer({ leads, onUpdate, syncTrigger = 0 }) {
 
       {/* COLUMN 2: LIST */}
       <section className="mails-list-pane glass-panel">
-        <div className="mails-list-header">
-          <input 
-            type="text" 
-            className="mails-search" 
-            placeholder="🔍 Buscar..." 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          {activeFolder !== 'leads' && (
+        <div className="mails-header-row">
+          <div className="mails-search">
+            <span className="search-icon">🔍</span>
+            <input 
+              type="text" 
+              placeholder="Buscar..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <button 
+            className="action-btn" 
+            onClick={fetchData}
+            disabled={isSyncing}
+            style={{ marginLeft: '10px', whiteSpace: 'nowrap' }}
+          >
+            {isSyncing ? 'Sincronizando...' : '🔄 Sincronizar'}
+          </button>
+        </div>
+        {activeFolder !== 'leads' && (
             <div className="mails-list-toolbar">
               <label className="checkbox-label">
                 <input 
