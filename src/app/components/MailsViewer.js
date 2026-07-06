@@ -145,13 +145,29 @@ export default function MailsViewer({ leads, onUpdate, syncTrigger = 0 }) {
       .finally(() => setIsSyncing(false));
   };
 
+  const leadEmails = useMemo(() => {
+    return new Set(leads.map(l => l.email?.toLowerCase()).filter(Boolean));
+  }, [leads]);
+
+  const displayInboxCount = useMemo(() => {
+    return inboxEmails.filter((e) => leadEmails.has(e.from?.toLowerCase())).length;
+  }, [inboxEmails, leadEmails]);
+
+  const displayImportantCount = useMemo(() => {
+    return inboxEmails.filter((e) => leadEmails.has(e.from?.toLowerCase()) && e.categoria_ia !== 'spam').length;
+  }, [inboxEmails, leadEmails]);
+
+  const displaySpamCount = useMemo(() => {
+    return inboxEmails.filter((e) => leadEmails.has(e.from?.toLowerCase()) && e.categoria_ia === 'spam').length;
+  }, [inboxEmails, leadEmails]);
+
   // Derived lists based on folder & search
   const filteredList = useMemo(() => {
     let list = [];
     if (activeFolder === 'leads') {
       list = threads;
     } else {
-      list = inboxEmails;
+      list = inboxEmails.filter((e) => leadEmails.has(e.from?.toLowerCase()));
       if (activeFolder === 'important') {
         list = list.filter((e) => e.categoria_ia !== 'spam');
       } else if (activeFolder === 'spam') {
@@ -175,7 +191,7 @@ export default function MailsViewer({ leads, onUpdate, syncTrigger = 0 }) {
       }
     }
     return list;
-  }, [activeFolder, inboxEmails, threads, searchQuery]);
+  }, [activeFolder, inboxEmails, threads, searchQuery, leadEmails]);
 
   const fetchAiDraft = useCallback(async (leadName, email, messages, force = false) => {
     const cacheKey = `${leadName}:${messages.length}`;
@@ -655,21 +671,21 @@ export default function MailsViewer({ leads, onUpdate, syncTrigger = 0 }) {
           onClick={() => { setActiveFolder('inbox'); setSelectedItem(null); }}
         >
           <span>📥 Bandeja</span>
-          <span className="folder-badge">{isSyncing && activeFolder === 'inbox' ? '⏳' : inboxEmails.length}</span>
+          <span className="folder-badge">{isSyncing && activeFolder === 'inbox' ? '⏳' : displayInboxCount}</span>
         </button>
         <button 
           className={`folder-btn ${activeFolder === 'important' ? 'active' : ''}`}
           onClick={() => { setActiveFolder('important'); setSelectedItem(null); }}
         >
           <span>⭐ Importantes</span>
-          <span className="folder-badge">{isSyncing && activeFolder === 'important' ? '⏳' : inboxEmails.filter(e => e.categoria_ia !== 'spam').length}</span>
+          <span className="folder-badge">{isSyncing && activeFolder === 'important' ? '⏳' : displayImportantCount}</span>
         </button>
         <button 
           className={`folder-btn ${activeFolder === 'spam' ? 'active' : ''}`}
           onClick={() => { setActiveFolder('spam'); setSelectedItem(null); }}
         >
           <span>🤖 Spam / Portales</span>
-          <span className="folder-badge">{isSyncing && activeFolder === 'spam' ? '⏳' : inboxEmails.filter(e => e.categoria_ia === 'spam').length}</span>
+          <span className="folder-badge">{isSyncing && activeFolder === 'spam' ? '⏳' : displaySpamCount}</span>
         </button>
         <button 
           className={`folder-btn ${activeFolder === 'leads' ? 'active' : ''}`}

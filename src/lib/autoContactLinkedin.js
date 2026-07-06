@@ -55,6 +55,7 @@ export async function autoContactLinkedin(lead, username, password, headlessOver
     let isFinished = false;
     let attempts = 0;
     const maxSteps = 10; // límite de pasos
+    let appliedPitch = 'Postulación rápida en LinkedIn (Easy Apply).';
 
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -114,8 +115,8 @@ Sin emojis excesivos y con tono profesional pero atrevido y directo.`;
             contents: prompt,
           });
 
-          const pitch = response.text?.trim() || 'Hola, vi su oferta...';
-          await page.type('textarea', pitch, { delay: 10 });
+          appliedPitch = response.text?.trim() || 'Hola, vi su oferta...';
+          await page.type('textarea', appliedPitch, { delay: 10 });
           await delay(1000);
         }
       }
@@ -158,6 +159,25 @@ Sin emojis excesivos y con tono profesional pero atrevido y directo.`;
       fecha_contacto: new Date().toISOString(),
       origen: 'LinkedIn Auto-Apply'
     });
+
+    // Guardar registro sintético en el módulo de correos
+    try {
+      const { upsertMessage } = require('./emailStore');
+      upsertMessage(lead, {
+        id: `auto_li_${Date.now()}`,
+        subject: `🤖 Auto-Postulado (LinkedIn): ${lead.nombre_negocio || 'Vacante'}`,
+        body: `Postulación completada de forma 100% automática en LinkedIn (Easy Apply).\n\nPropuesta enviada:\n\n${appliedPitch}`,
+        sentAt: new Date().toISOString(),
+        direction: 'outbound',
+        status: 'sent',
+        from: 'Auto-Postulador'
+      });
+      if (global.io) {
+        global.io.emit('emails_updated');
+      }
+    } catch (e) {
+      console.error('[LinkedIn Bot] Error guardando registro de correo de postulación:', e.message);
+    }
 
     if (global.io) {
       global.io.emit('leads_updated');

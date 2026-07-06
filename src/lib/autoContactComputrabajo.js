@@ -84,6 +84,7 @@ export async function autoContactComputrabajo(lead, username, password, headless
     const applySelector = '.js-btn-apply, button, a';
     const buttons = await page.$$(applySelector);
     let applyBtnClicked = false;
+    let appliedPitch = 'Postulación rápida en Computrabajo.';
 
     for (const btn of buttons) {
       const text = await page.evaluate(el => el.textContent, btn);
@@ -123,9 +124,9 @@ Usa tono profesional pero atrevido y directo, sin emojis excesivos.`;
         contents: prompt,
       });
 
-      const pitch = response.text?.trim() || 'Hola, vi su oferta...';
+      appliedPitch = response.text?.trim() || 'Hola, vi su oferta...';
       
-      await page.type(textareaSelector, pitch, { delay: 10 });
+      await page.type(textareaSelector, appliedPitch, { delay: 10 });
       await delay(1000);
       
       // Enviar
@@ -146,6 +147,25 @@ Usa tono profesional pero atrevido y directo, sin emojis excesivos.`;
       fecha_contacto: new Date().toISOString(),
       origen: 'Computrabajo Auto-Contact'
     });
+
+    // Guardar registro sintético en el módulo de correos
+    try {
+      const { upsertMessage } = require('./emailStore');
+      upsertMessage(lead, {
+        id: `auto_ct_${Date.now()}`,
+        subject: `🤖 Auto-Postulado: ${lead.nombre_negocio || 'Vacante'}`,
+        body: `Postulación completada de forma 100% automática en Computrabajo.\n\nPropuesta enviada:\n\n${appliedPitch}`,
+        sentAt: new Date().toISOString(),
+        direction: 'outbound',
+        status: 'sent',
+        from: 'Auto-Postulador'
+      });
+      if (global.io) {
+        global.io.emit('emails_updated');
+      }
+    } catch (e) {
+      console.error('[Autocontact] Error guardando registro de correo de postulación:', e.message);
+    }
 
     if (global.io) {
       global.io.emit('leads_updated');
