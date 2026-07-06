@@ -720,8 +720,7 @@ export default function MailsViewer({ leads, onUpdate, syncTrigger = 0 }) {
               </button>
             </div>
           )}
-        </div>
-        
+
         <div className="mails-list-content">
           {filteredList.map((item) => {
             const isSelected = selectedItem?.uid ? selectedItem.uid === item.uid : selectedItem?.nombre_negocio === item.nombre_negocio;

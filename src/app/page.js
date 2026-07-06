@@ -13,10 +13,7 @@ import styles from './page.module.css';
 
 const VALID_TABS = new Set(['company', 'leads', 'mails', 'dashboard', 'playbook']);
 
-// Polling intervals
-const LEADS_POLL_MS   = 4 * 60 * 60 * 1000; // cada 4 horas (Firestore lo cuida en tiempo real)
-const EMAIL_POLL_MS   = 30 * 1000;           // correos cada 30 segundos
-const SESSION_POLL_MS = 5 * 60 * 1000;       // sesión cada 5 minutos
+const SESSION_POLL_MS = 5 * 60 * 1000;
 
 export default function Home() {
   const [leads, setLeads]     = useState([]);
@@ -25,8 +22,6 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('company');
   const [emailSyncTs, setEmailSyncTs] = useState(0); // señal para que MailsViewer recargue
 
-  const emailTimerRef   = useRef(null);
-  const leadsTimerRef   = useRef(null);
   const sessionTimerRef = useRef(null);
 
   // ── fetch helpers ────────────────────────────────────────────────────────────
@@ -96,42 +91,25 @@ export default function Home() {
     return () => { cancelled = true; };
   }, [triggerEmailSync]);
 
-  // ── Inicialización (Sockets + Session) ────────────────────────────────────────────────────────
+  // ── WebSockets + session polling ─────────────────────────────────────────────
   useEffect(() => {
-    // Escuchar actualizaciones de Firebase
-    let unsubscribeLeads = () => {};
-    if (typeof window !== 'undefined') {
-      import('@/lib/leadsStoreFirestore').then(({ listenToLeads }) => {
-        unsubscribeLeads = listenToLeads(data => setLeads(data));
-      });
-    }
-
-    // Inicializar sesión y datos
-    fetchSession();
-    fetchLeads();
-
-    // Inicializar WebSockets
     const socket = io();
-    
+
     socket.on('connect', () => {
       console.log('[Socket.io] Conectado al servidor WebSocket');
     });
 
     socket.on('emails_updated', () => {
-      console.log('[Socket.io] Recibida notificación de correos actualizados');
-      setEmailSyncTs(Date.now()); // gatillar recarga en MailsViewer
+      setEmailSyncTs(Date.now());
     });
 
     socket.on('leads_updated', () => {
-      console.log('[Socket.io] Recibida notificación de leads scrapeados (Upwork)');
       fetchLeads();
     });
 
-    // Session polling (still needed since auth isn't over sockets)
     sessionTimerRef.current = setInterval(fetchSession, SESSION_POLL_MS);
 
     return () => {
-      if (unsubscribeLeads) unsubscribeLeads();
       clearInterval(sessionTimerRef.current);
       socket.disconnect();
     };

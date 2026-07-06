@@ -1,4 +1,4 @@
-FROM node:18-alpine AS base
+FROM node:20-alpine AS base
 
 # Dependencias necesarias para Node y Next.js en Alpine
 FROM base AS deps

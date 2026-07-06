@@ -1,5 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  serverExternalPackages: [
+    'firebase-admin',
+    'imapflow',
+    'nodemailer',
+    'mailparser',
+    'google-auth-library',
+    'googleapis',
+  ],
   images: {
     remotePatterns: [
       {

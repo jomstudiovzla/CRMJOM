@@ -1,44 +1,23 @@
-# CRM Home — Portal JOM Studio
+# Render CLI
 
-Portal web para operar el playbook: dashboard, leads y **comunicaciones estilo Gmail**.
+## Installation
 
-## Inicio rápido
+- [Homebrew](https://render.com/docs/cli#homebrew-macos-linux)
+- [Direct Download](https://render.com/docs/cli#direct-download)
 
-```bash
-npm install
-npm run dev
-```
+## Documentation
 
-Abre http://localhost:3000
+Documentation is hosted at https://render.com/docs/cli.
 
-## Pestañas
+## Contributing
 
-| Tab | Función |
-|-----|---------|
-| Dashboard | KPIs y funnel CAMP-01 |
-| **Comunicaciones** | Inbox Gmail — enviar emails a leads |
-| Leads | Tabla + marcar estados |
-| Playbook | Documentación integrada |
+To create a new command, use the `cmd/template.go` template file as a starting point. Reference the [CLI Style Guide](docs/STYLE.md) to learn more about command naming, flags, arguments, and help text conventions.
 
-## Gmail integrado
+### Dev setup
 
-1. Copia `.env.local.example` → `.env.local`
-2. Añade `GMAIL_USER` y `GMAIL_APP_PASSWORD` (contraseña de aplicación Google)
-3. Reinicia `npm run dev`
-4. Comunicaciones → selecciona lead → Enviar
+We use [prek](https://prek.j178.dev/) to run precommit-compatible checks locally and in CI.
 
-Sin `.env.local`: abre tu cliente de correo con mensaje prellenado (mailto).
+- If you didn't install `prek` following the [dev setup guide](https://slab.render.com/posts/dev-setup-guide-ect5drdb), do so now (e.g., `brew install prek`)
+- Set up prek git hooks with `prek install`.
 
-Guía completa: [../ejecutar/SETUP-GMAIL-CRM.md](../ejecutar/SETUP-GMAIL-CRM.md)
-
-## APIs
-
-- `GET /api/leads` — CSV + JSON enriquecido
-- `POST /api/leads/update` — actualizar estado pipeline
-- `POST /api/email/send` — enviar + guardar historial
-- `GET /api/email/threads` — conversaciones por lead
-- `GET /api/email/status` — Gmail conectado o mailto
-
-## Datos
-
-Lee/escribe en `../ejecutar/` (CSV leads, threads JSON).
+Read [AGENTS.md](AGENTS.md) for common dev commands. It's written for humans too!
