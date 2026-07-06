@@ -72,8 +72,8 @@ export default function WhatsAppModal({ isOpen, onClose, lead, onSent }) {
       console.error('[WhatsApp Modal] Error actualizando lead:', e);
     }
 
-    // Abrir WhatsApp con el texto prellenado
-    const wsUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(draft)}`;
+    // Abrir WhatsApp con el texto prellenado (formato wa.me)
+    const wsUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(draft)}`;
     window.open(wsUrl, '_blank');
     onClose();
   };

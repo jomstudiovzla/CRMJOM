@@ -20,6 +20,7 @@ const COMPANY = {
   web: 'https://jomstudiovzla.github.io/Jomstudiopage/',
   portfolio: 'https://jomstudiovzla.github.io/Jomstudiopage/repository.html',
   email: 'jomstudiovzla@gmail.com',
+  whatsapp: '+58 416-5159067',
   market: 'Venezuela · LatAm · Remoto · Global',
   director: 'Jesús Omar Martínez',
 };
@@ -87,6 +88,7 @@ export default function CompanyProfile({ user, leads, onNavigate }) {
             <div className="hero-links">
               <a href={COMPANY.web} target="_blank" rel="noopener noreferrer">Web</a>
               <a href={COMPANY.portfolio} target="_blank" rel="noopener noreferrer">Portfolio 19 cases</a>
+              <a href="https://wa.me/584165159067" target="_blank" rel="noopener noreferrer" style={{color: '#4ade80'}}>💬 WhatsApp Business</a>
               <span>{COMPANY.market}</span>
             </div>
           </div>
