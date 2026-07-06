@@ -115,49 +115,6 @@ export default function Home() {
     };
   }, [fetchLeads, fetchSession]);
 
-  // ── Firestore real-time listener para leads ──────────────────────────────────
-
-  useEffect(() => {
-    // Solo en el cliente y solo si Firebase está disponible
-    let unsubscribe = null;
-
-    (async () => {
-      try {
-        const { initializeApp, getApps, getApp } = await import('firebase/app');
-        const { getFirestore, collection, onSnapshot, orderBy, query } = await import('firebase/firestore');
-
-        const firebaseConfig = {
-          apiKey:            process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-          authDomain:        process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-          projectId:         process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-          storageBucket:     process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-          messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-          appId:             process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-        };
-
-        if (!firebaseConfig.apiKey) return;
-
-        const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-        const db  = getFirestore(app);
-
-        const q = query(collection(db, 'leads'), orderBy('fecha_actualizacion', 'desc'));
-
-        unsubscribe = onSnapshot(q, (snapshot) => {
-          const docs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-          if (docs.length > 0) {
-            setLeads(docs);
-          }
-        }, (err) => {
-          console.warn('[JOM] Firestore onSnapshot error:', err.message);
-        });
-      } catch (err) {
-        console.warn('[JOM] Firestore listener no disponible:', err.message);
-      }
-    })();
-
-    return () => { if (unsubscribe) unsubscribe(); };
-  }, []);
-
   // ── navegación ───────────────────────────────────────────────────────────────
 
   const navigate = (tab) => {

@@ -748,7 +748,7 @@ export default function MailsViewer({ leads, onUpdate, syncTrigger = 0 }) {
             return (
               <div 
                 key={item.uid} 
-                className={`mail-list-item ${isSelected ? 'selected-item' : ''}`}
+                className={`mail-list-item ${isSelected ? 'selected-item' : ''} ${item.prioridad_ia === 'alta' ? 'priority-high' : ''}`}
                 onClick={() => handleSelectItem(item)}
               >
                 <input 
@@ -760,10 +760,16 @@ export default function MailsViewer({ leads, onUpdate, syncTrigger = 0 }) {
                 />
                 <div className="item-content">
                   <div className="item-header">
-                    <span className="item-sender">{item.fromName || item.from}</span>
+                    <span className="item-sender">
+                      {item.prioridad_ia === 'alta' && <span title="Alta Prioridad" style={{marginRight: '5px'}}>🔥</span>}
+                      {item.fromName || item.from}
+                    </span>
                     <span className="item-date">{new Date(item.date).toLocaleDateString()}</span>
                   </div>
-                  <div className="item-subject">{item.subject}</div>
+                  <div className="item-subject">
+                    <span className={`badge ${item.categoria_ia || 'mas_informacion'}`}>{item.categoria_ia || 'mas_info'}</span>
+                    {' '}{item.subject}
+                  </div>
                   <div className="item-preview">{item.preview}</div>
                 </div>
               </div>

@@ -11,7 +11,6 @@ import {
   signOut,
 } from 'firebase/auth';
 import './LoginPage.css';
-import { getProductionLoginUrl, isVercelPreviewHost, PRODUCTION_HOST } from '@/lib/productionHost';
 
 const ADMIN_EMAIL = 'jomstudiovzla@gmail.com';
 
@@ -22,8 +21,8 @@ const ERRORS = {
 };
 
 const FIREBASE_ERRORS = {
-  'auth/invalid-api-key': 'Firebase API Key inválida — redeploy en Vercel tras pegar las variables.',
-  'auth/unauthorized-domain': null,
+  'auth/invalid-api-key': 'Firebase API Key inválida — revisa NEXT_PUBLIC_FIREBASE_* en .env.local',
+  'auth/unauthorized-domain': 'Dominio no autorizado — añade localhost en Firebase → Authorized domains',
   'auth/popup-blocked': 'Popup bloqueado — reintentando con redirección…',
   'auth/popup-closed-by-user': 'Ventana cerrada. Intenta de nuevo.',
   'auth/cancelled-popup-request': 'Espera a que termine el intento anterior.',
@@ -60,28 +59,11 @@ export default function LoginPage() {
   const errorKey = searchParams.get('error');
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState('');
-  const [setupHints, setSetupHints] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
-    const host = window.location.hostname;
-
-    if (isVercelPreviewHost(host)) {
-      window.location.replace(getProductionLoginUrl());
-      return undefined;
-    }
 
     (async () => {
-      try {
-        const res = await fetch(`/api/auth/firebase-config?host=${encodeURIComponent(host)}`);
-        const data = await res.json();
-        if (!cancelled && data.hints?.length) {
-          setSetupHints(data.hints);
-        }
-      } catch {
-        /* ignore */
-      }
-
       if (!auth || cancelled) return;
 
       try {
@@ -92,10 +74,7 @@ export default function LoginPage() {
         }
       } catch (err) {
         if (!cancelled) {
-          const domainMsg = err.code === 'auth/unauthorized-domain'
-            ? `Dominio "${host}" no autorizado. Firebase → Authorized domains → añade "${host}" o usa https://${PRODUCTION_HOST}/login`
-            : null;
-          setLocalError(domainMsg || FIREBASE_ERRORS[err.code] || err.message || 'Error tras redirección de Google');
+          setLocalError(FIREBASE_ERRORS[err.code] || err.message || 'Error tras redirección de Google');
         }
       }
     })();
@@ -107,18 +86,25 @@ export default function LoginPage() {
 
   const handleFirebaseLogin = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setLocalError('');
 
     if (!isFirebaseConfigured() || !auth) {
-      setLocalError('Firebase no configurado. Pega NEXT_PUBLIC_FIREBASE_* en Vercel y haz Redeploy.');
+      setLocalError('Firebase no configurado. Copia NEXT_PUBLIC_FIREBASE_* a .env.local y reinicia npm run dev.');
+      setLoading(false);
       return;
     }
 
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      
-      setLoading(true);
-      setLocalError('');
-      await handleGoogleUser(result.user, setLocalError, setLoading);
+      if (isLocal) {
+        const result = await signInWithPopup(auth, googleProvider);
+        await handleGoogleUser(result.user, setLocalError, setLoading);
+        return;
+      }
+
+      await signInWithRedirect(auth, googleProvider);
     } catch (err) {
       console.error(err);
       const popupBlocked =
@@ -126,19 +112,17 @@ export default function LoginPage() {
         err.code === 'auth/popup-closed-by-user' ||
         err.code === 'auth/cancelled-popup-request';
 
-      if (popupBlocked) {
-        setLocalError('El navegador bloqueó la ventana de Google. Por favor, desactiva tu bloqueador de anuncios (AdBlock, uBlock, Brave Shields) o permite ventanas emergentes e intenta de nuevo.');
+      if (popupBlocked && isLocal) {
+        setLocalError('Permite ventanas emergentes para Google o desactiva el bloqueador de anuncios.');
+      } else if (popupBlocked) {
+        try {
+          await signInWithRedirect(auth, googleProvider);
+          return;
+        } catch (redirectErr) {
+          setLocalError(FIREBASE_ERRORS[redirectErr.code] || redirectErr.message);
+        }
       } else {
-        const host = window.location.hostname;
-        const domainMsg = err.code === 'auth/unauthorized-domain'
-          ? `Dominio "${host}" no autorizado en Firebase.`
-          : null;
-        setLocalError(
-          domainMsg ||
-            FIREBASE_ERRORS[err.code] ||
-            err.message ||
-            'Error al iniciar sesión con Google.'
-        );
+        setLocalError(FIREBASE_ERRORS[err.code] || err.message || 'Error al iniciar sesión con Google.');
       }
       setLoading(false);
     }
@@ -157,6 +141,7 @@ export default function LoginPage() {
             priority
           />
           <p className="login-tagline">Digital Alchemy · CRM Pro</p>
+          <p className="login-local-badge">🖥️ Modo local · localhost</p>
         </div>
 
         <div className="login-company">
@@ -175,8 +160,6 @@ export default function LoginPage() {
         {localError && (
           <div className="login-error" style={{ marginTop: '10px' }}>{localError}</div>
         )}
-
-        {/* Checklist UI removed */}
 
         <button
           className="google-btn"

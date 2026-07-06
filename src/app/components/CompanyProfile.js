@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import Image from 'next/image';
 import { TIER_S_NICHOS } from '@/lib/nichos';
 import './CompanyProfile.css';
 
 const PRO_MODULES = [
-  { id: 'mails', icon: '📬', title: 'Mails', desc: 'Smart Feed + IA Extractor', pro: true },
-  { id: 'leads', icon: '👥', title: 'Leads', desc: 'Scraper Upwork + filtros', pro: true },
+  { id: 'mails', icon: '📬', title: 'Mails', desc: 'Gmail IMAP + Ghostwriter IA', pro: true },
+  { id: 'leads', icon: '👥', title: 'Leads', desc: 'Scraper Upwork + Deep Audit', pro: true },
   { id: 'dashboard', icon: '📊', title: 'Dashboard', desc: 'KPIs y funnel en vivo', pro: true },
   { id: 'playbook', icon: '📚', title: 'Playbook', desc: '6 bloques + plantillas JOM', pro: true },
 ];
@@ -28,7 +28,29 @@ function leadPaquete(lead) {
   return lead.paquete_jom || lead.paquete || '';
 }
 
+const MODULE_LABELS = {
+  login: 'Login Google',
+  gmail: 'Gmail SMTP',
+  gmailImap: 'Gmail IMAP',
+  gemini: 'Gemini IA',
+  ghostwriter: 'Ghostwriter',
+  deepScraper: 'Scraper Profundo',
+  upworkScraper: 'Upwork RSS',
+  websockets: 'WebSockets',
+  imapIdle: 'IMAP IDLE',
+  playbook: 'Playbook MD',
+};
+
 export default function CompanyProfile({ user, leads, onNavigate }) {
+  const [systemStatus, setSystemStatus] = useState(null);
+
+  useEffect(() => {
+    fetch('/api/system/status')
+      .then((r) => r.json())
+      .then((data) => { if (data.success) setSystemStatus(data); })
+      .catch(() => {});
+  }, []);
+
   const tierStats = useMemo(() => {
     const counts = {};
     for (const key of Object.keys(TIER_S_NICHOS)) {
@@ -57,7 +79,7 @@ export default function CompanyProfile({ user, leads, onNavigate }) {
           <div>
             <div className="hero-badges">
               <span className="badge-pro">PRO ADMIN</span>
-              <span className="badge-live">Fase 2 · Autonomía IA</span>
+              <span className="badge-live">Local · Motor Completo</span>
             </div>
             <h1>{COMPANY.name}</h1>
             <p className="hero-tagline">{COMPANY.tagline}</p>
@@ -121,8 +143,35 @@ export default function CompanyProfile({ user, leads, onNavigate }) {
         </div>
       </div>
 
+      {systemStatus?.modules && (
+        <section className="company-nichos glass-panel">
+          <h2>🖥️ Estado del motor local</h2>
+          <div className="nichos-list">
+            {Object.entries(systemStatus.modules)
+              .filter(([key]) => MODULE_LABELS[key])
+              .map(([key, val]) => {
+                const active = typeof val === 'number' ? val > 0 : Boolean(val);
+                const detail = typeof val === 'number' && val > 0 ? ` (${val})` : '';
+                return (
+                  <div key={key} className="nicho-row">
+                    <strong>{MODULE_LABELS[key]}</strong>
+                    <span className={active ? 'nicho-count' : 'paquete'}>
+                      {active ? `🟢 Activo${detail}` : '🔴 Configurar'}
+                    </span>
+                  </div>
+                );
+              })}
+          </div>
+          {systemStatus.hints?.length > 0 && (
+            <p style={{ marginTop: 12, fontSize: 13, opacity: 0.8 }}>
+              {systemStatus.hints.join(' · ')}
+            </p>
+          )}
+        </section>
+      )}
+
       <section className="pro-modules glass-panel">
-        <h2>Módulos Pro — Fase 2</h2>
+        <h2>Módulos Pro — Localhost</h2>
         <div className="modules-grid">
           {PRO_MODULES.map((mod) => (
             <button

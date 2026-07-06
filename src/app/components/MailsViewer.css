@@ -433,3 +433,54 @@
   font-size: 0.75rem;
   margin-left: 8px;
 }
+
+/* Nuevos Estilos Turbo */
+.mail-list-item.priority-high {
+  border-left: 4px solid #ef4444 !important;
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.mail-list-item.priority-high:hover {
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  margin-right: 6px;
+}
+
+.badge.interesado {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+}
+
+.badge.mas_informacion {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.badge.no_interesado {
+  background: rgba(156, 163, 175, 0.2);
+  color: #d1d5db;
+  border: 1px solid rgba(156, 163, 175, 0.4);
+}
+
+.badge.importante {
+  background: rgba(234, 179, 8, 0.2);
+  color: #fde047;
+  border: 1px solid rgba(234, 179, 8, 0.4);
+}
+
+.badge.spam {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+

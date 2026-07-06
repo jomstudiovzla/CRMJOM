@@ -77,8 +77,8 @@ export default function RootLayout({ children }) {
         <link rel="apple-touch-icon" href="/logo_jom_square.jpg" />
         <meta property="og:title" content="JOM Studio | CRM Pro" />
         <meta property="og:description" content="Portal administrativo y CRM de JOM Studio." />
-        <meta property="og:image" content="https://crmjom.vercel.app/logo_jom_square.jpg" />
-        <meta property="og:url" content="https://crmjom.vercel.app" />
+        <meta property="og:image" content="/logo_jom_square.jpg" />
+        <meta property="og:url" content="http://localhost:3000" />
       </head>
       <body>
         <div id="custom-cursor-dot" className="hidden md:block"></div>

@@ -22,19 +22,30 @@ export async function classifyEmailIntent(emailBody) {
 
   if (!apiKey) {
     console.warn('[JOM CRM] Gemini no configurado — categoría por defecto: mas_informacion');
-    return 'mas_informacion';
+    return { intent: 'mas_informacion', priority: 'media' };
   }
 
   const ai = new GoogleGenAI({ apiKey });
   const prompt = `Eres un cerrador de ventas B2B y asistente personal de JOM Studio. 
-Clasifica la intención y relevancia del correo recibido.
+Clasifica la intención y urgencia del correo recibido.
 
-Responde EXCLUSIVAMENTE con UNA de estas etiquetas (sin puntuación ni texto extra):
+Responde EXCLUSIVAMENTE en formato JSON válido con la siguiente estructura:
+{
+  "intent": "una de las categorias validas",
+  "priority": "alta, media o baja"
+}
+
+Categorías válidas para "intent":
 - interesado (intención de pago, reunión, cotización)
 - mas_informacion (preguntas, dudas, pide detalles)
 - no_interesado (rechazo cordial)
 - importante (temas de trabajo, audiovisuales, diseño, branding, clientes potenciales nuevos)
 - spam (ofertas de empleo tipo Computrabajo, newsletters, promociones no solicitadas, basura)
+
+Prioridades para "priority":
+- alta (clientes VIP, dinero en mesa, problemas graves, oportunidad inmediata)
+- media (dudas estándar, seguimientos)
+- baja (spam, rechazos, newsletters)
 
 Correo:
 """
@@ -45,15 +56,20 @@ ${emailBody.slice(0, 4000)}
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
+      config: { responseMimeType: 'application/json' }
     });
 
-    const intent = response.text?.trim().toLowerCase().replace(/[^a-z_]/g, '');
+    const parsed = JSON.parse(response.text?.trim() || '{}');
+    const intent = parsed.intent?.toLowerCase().replace(/[^a-z_]/g, '') || 'mas_informacion';
+    const priority = parsed.priority?.toLowerCase() || 'media';
+    
     const validIntents = [...AI_CATEGORY_KEYS, 'importante', 'spam'];
-    if (validIntents.includes(intent)) return intent;
-    return 'mas_informacion';
+    const finalIntent = validIntents.includes(intent) ? intent : 'mas_informacion';
+    
+    return { intent: finalIntent, priority };
   } catch (error) {
     console.error('[JOM CRM] Error Gemini:', error.message);
-    return 'mas_informacion';
+    return { intent: 'mas_informacion', priority: 'media' };
   }
 }
 

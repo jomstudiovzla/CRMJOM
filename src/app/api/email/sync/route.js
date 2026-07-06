@@ -67,16 +67,21 @@ export async function GET() {
 
         if (!fromEmail) continue;
 
-        let categoria_ia = catCache[uid];
+        let categoria_ia = catCache[uid]?.intent || catCache[uid]; // Compatibilidad vieja
+        let prioridad_ia = catCache[uid]?.priority || 'media';
         let isNew = false;
-        if (!categoria_ia) {
+        
+        if (!categoria_ia || typeof catCache[uid] === 'string') {
           isNew = true;
           try {
-            categoria_ia = await classifyEmailIntent(bodyText);
-            catCache[uid] = categoria_ia;
+            const result = await classifyEmailIntent(bodyText);
+            categoria_ia = result.intent;
+            prioridad_ia = result.priority;
+            catCache[uid] = { intent: categoria_ia, priority: prioridad_ia };
           } catch(e) {
             console.error('Gemini rate limit error on UID', uid);
             categoria_ia = 'desconocido';
+            prioridad_ia = 'media';
           }
         }
 
@@ -85,6 +90,7 @@ export async function GET() {
           estado_pipeline: categoria_ia !== 'spam' && categoria_ia !== 'importante' ? categoria_ia : undefined,
           ultimo_correo_recibido: preview,
           fecha_actualizacion: new Date().toISOString(),
+          prioridad: prioridad_ia,
         });
         
         if (matched > 0 && categoria_ia !== 'spam') {
@@ -99,6 +105,7 @@ export async function GET() {
           preview,
           body: bodyText, // Necesario para la extracción de leads con IA
           categoria_ia,
+          prioridad_ia,
           date: parsed.date || new Date()
         });
 

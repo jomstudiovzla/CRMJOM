@@ -9,7 +9,7 @@ function getFirebaseApiKey() {
 export async function verifyFirebaseIdToken(idToken) {
   const apiKey = getFirebaseApiKey();
   if (!apiKey) {
-    throw new Error('NEXT_PUBLIC_FIREBASE_API_KEY no configurada en Vercel');
+    throw new Error('NEXT_PUBLIC_FIREBASE_API_KEY no configurada en .env.local');
   }
 
   const res = await fetch(

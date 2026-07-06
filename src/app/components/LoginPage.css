@@ -17,6 +17,17 @@
   margin-bottom: 28px;
 }
 
+.login-local-badge {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
 .login-logo-img {
   border-radius: 16px;
   margin: 0 auto 16px auto;

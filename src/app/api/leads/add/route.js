@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { updateLeadState, updateLeadGap } from '@/lib/leadsStoreFirestore';
+import { updateLeadState, updateLeadGap } from '@/lib/leadsStore';
 import { fetchWebsiteText, normalizeUrl } from '@/lib/websiteUtils';
 import { auditWebsiteForGap } from '@/lib/gemini';
 

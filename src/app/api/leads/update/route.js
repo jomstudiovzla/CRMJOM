@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { updateLeadState } from '@/lib/leadsStoreFirestore';
+import { updateLeadState } from '@/lib/leadsStore';
 
 export async function POST(request) {
   try {

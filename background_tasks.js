@@ -3,6 +3,9 @@ const { Server } = require('socket.io');
 const { ImapFlow } = require('imapflow');
 
 module.exports = function initBackgroundTasks(httpServer) {
+  const PORT = process.env.PORT || 3000;
+  const localBase = `http://localhost:${PORT}`;
+
   // 1. Inicializar WebSockets
   const io = new Server(httpServer, {
     cors: { origin: '*' }
@@ -17,7 +20,7 @@ module.exports = function initBackgroundTasks(httpServer) {
     console.log('[Cron] Ejecutando scraper de Upwork de fondo...');
     try {
       // Llamamos al API de Next.js internamente
-      await fetch('http://localhost:3000/api/scraper/sync', { 
+      await fetch(`${localBase}/api/scraper`, {
         // Evitamos timeout del cliente fetch para scrapers largos
         signal: AbortSignal.timeout(300000) // 5 minutos
       });
@@ -31,7 +34,7 @@ module.exports = function initBackgroundTasks(httpServer) {
   // 3. Tarea de fondo: Sync manual periódico por seguridad (cada 5 minutos)
   cron.schedule('*/5 * * * *', async () => {
     try {
-      await fetch('http://localhost:3000/api/email/sync');
+      await fetch(`${localBase}/api/email/sync`);
       io.emit('emails_updated');
     } catch(err) {}
   });
@@ -59,7 +62,7 @@ module.exports = function initBackgroundTasks(httpServer) {
           console.log(`[IMAP IDLE] ¡Nuevo correo detectado! (Total: ${data.count})`);
           try {
             // Disparamos el pipeline de procesamiento de correos
-            await fetch('http://localhost:3000/api/email/sync');
+            await fetch(`${localBase}/api/email/sync`);
             // Notificamos a la UI para que refresque inmediatamente
             io.emit('emails_updated');
           } catch(err) {

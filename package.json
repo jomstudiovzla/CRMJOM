@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@google/genai": "^2.10.0",
+    "cheerio": "^1.2.0",
     "csv-parse": "^7.0.1",
     "csv-stringify": "^6.8.1",
     "firebase": "^12.15.0",

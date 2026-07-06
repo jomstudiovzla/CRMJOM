@@ -58,6 +58,81 @@ export async function GET() {
       }
     }
 
+    // --- NUEVO AGRESIVO: Scraping de Freelancer.com y Workana (vía RSS y Búsquedas HTML) ---
+    const cheerio = require('cheerio');
+    const fetchWithHeaders = async (url) => {
+      try {
+        const res = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8'
+          },
+          signal: AbortSignal.timeout(10000)
+        });
+        return res.ok ? await res.text() : '';
+      } catch (e) {
+        return '';
+      }
+    };
+
+    for (const query of queries) {
+      try {
+        // Computrabajo (Búsqueda agresiva)
+        const ctUrl = `https://co.computrabajo.com/trabajo-de-${encodeURIComponent(query.keyword.replace(/ /g, '-'))}`;
+        const ctHtml = await fetchWithHeaders(ctUrl);
+        if (ctHtml) {
+          const $ = cheerio.load(ctHtml);
+          $('.box_offer').slice(0, JOBS_PER_QUERY).each((_, el) => {
+            const link = 'https://co.computrabajo.com' + ($(el).find('.js-o-link').attr('href') || '');
+            const title = $(el).find('.js-o-link').text().trim();
+            const desc = $(el).find('p').text().trim();
+            
+            if (title && link && !seenLinks.has(link)) {
+              seenLinks.add(link);
+              newLeads.push({
+                nombre_negocio: `[Computrabajo] ${title.slice(0, 70)}`,
+                email: '', telefono: '', web: link, link: link,
+                estado_pipeline: 'nuevo', calidad_lead: 'media', origen: 'Computrabajo Scraper',
+                nicho: query.label, paquete: query.paquete, paquete_jom: query.paquete, idioma: 'ES',
+                case_referencia: query.case_referencia, gap_detectado: desc.slice(0, 200),
+                fecha_contacto: new Date().toISOString(), categoria_ia: null, prioridad: 'baja'
+              });
+            }
+          });
+        }
+      } catch(e) {
+        console.warn('[JOM Scraper] Computrabajo falló:', e.message);
+      }
+    }
+
+    // WeWorkRemotely RSS (Trabajos de diseño internacionales, Fiverr/Freelancer proxy)
+    const wwrFeeds = [
+      'https://weworkremotely.com/categories/remote-design-jobs.rss',
+      'https://weworkremotely.com/categories/remote-programming-jobs.rss',
+      'https://www.freelancer.com/rss.xml' // Freelancer global feed
+    ];
+    for (const feedUrl of wwrFeeds) {
+      try {
+        const feed = await parser.parseURL(feedUrl);
+        const recentJobs = (feed.items || []).slice(0, 5);
+        for (const job of recentJobs) {
+          if (!job.link || seenLinks.has(job.link)) continue;
+          seenLinks.add(job.link);
+          newLeads.push({
+            nombre_negocio: `[Freelance/WWR] ${job.title?.slice(0, 70)}`,
+            email: '', telefono: '', web: job.link, link: job.link,
+            estado_pipeline: 'nuevo', calidad_lead: 'alta', origen: 'Global Freelance Scraper',
+            nicho: feedUrl.includes('design') ? 'DSGN' : 'DEV', paquete: 'DSGN', paquete_jom: 'DSGN', idioma: 'EN',
+            case_referencia: 'CASE_000', gap_detectado: (job.contentSnippet || '').slice(0, 200),
+            fecha_contacto: new Date().toISOString(), categoria_ia: null, prioridad: 'alta'
+          });
+        }
+      } catch (e) {
+        console.warn('[JOM Scraper] WeWorkRemotely/Freelancer falló:', e.message);
+      }
+    }
+
     // --- NUEVO: Scraping de Reddit (Redes Sociales) ---
     const redditFeeds = [
       'https://www.reddit.com/r/forhire/new.rss',

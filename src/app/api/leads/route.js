@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { mergeAllLeads } from '@/lib/leadsStoreFirestore';
+import { mergeAllLeads } from '@/lib/leadsStore';
 
 export async function GET() {
   try {
-    const combinedLeads = await mergeAllLeads();
+    const combinedLeads = mergeAllLeads();
     return NextResponse.json({ success: true, data: combinedLeads });
   } catch (error) {
     console.error('Error reading leads:', error);
