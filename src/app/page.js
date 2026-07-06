@@ -90,10 +90,11 @@ export default function Home() {
 
       if (!cancelled) {
         triggerEmailSync().catch(() => {});
+      }
     })();
 
     return () => { cancelled = true; };
-  }, []);
+  }, [triggerEmailSync]);
 
   // ── Inicialización (Sockets + Session) ────────────────────────────────────────────────────────
   useEffect(() => {
