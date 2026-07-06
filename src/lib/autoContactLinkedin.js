@@ -91,6 +91,35 @@ Basado en que soy Jesús Omar Martínez, Creative Director de JOM Studio con 5 a
         }
       }
 
+      // Buscar si hay textarea (Carta de presentación / Cover Letter) en este paso
+      const textarea = await page.$('textarea');
+      if (textarea) {
+        const val = await page.evaluate(el => el.value, textarea);
+        if (!val || val.trim() === '') {
+          console.log('[LinkedIn Bot] Detectado campo de mensaje/carta de presentación. Generando con Gemini...');
+          const prompt = `Redacta una postulación y propuesta de valor de desarrollo/diseño web para el puesto de "${lead.nombre_negocio}".
+Detalles de la oferta/empresa: "${lead.gap_detectado || ''}".
+Nicho del cliente: "${lead.nicho || ''}".
+
+La propuesta debe ser de parte de Jesús Omar Martínez, Creative Director de JOM Studio (desarrollo creativo web premium, alta gama, e-commerce, WebGL).
+Debe:
+1. Ser corta, directa y sumamente persuasiva (máximo 120 palabras).
+2. Explicar específicamente por qué les escribimos basado en su oferta/brecha tecnológica.
+3. Indicar por qué podemos trabajar juntos y cómo nuestra experiencia premium aporta valor real.
+4. Firmar como Jesús Omar Martínez, Creative Director de JOM Studio.
+Sin emojis excesivos y con tono profesional pero atrevido y directo.`;
+
+          const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+          });
+
+          const pitch = response.text?.trim() || 'Hola, vi su oferta...';
+          await page.type('textarea', pitch, { delay: 10 });
+          await delay(1000);
+        }
+      }
+
       // Buscar botones de navegación
       const buttons = await page.$$('button');
       let clickedNav = false;

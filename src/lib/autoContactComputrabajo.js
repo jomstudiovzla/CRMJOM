@@ -1,5 +1,6 @@
 import puppeteer from 'puppeteer';
 import { updateLeadState } from './leadsStore';
+import { GoogleGenAI } from '@google/genai';
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -70,17 +71,28 @@ export async function autoContactComputrabajo(lead, username, password, headless
     const textareaSelector = 'textarea';
     const textareas = await page.$$(textareaSelector);
     if (textareas.length > 0) {
-      const pitch = `Hola,
+      console.log('[Autocontact] Generando propuesta hiper-personalizada con Gemini...');
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const prompt = `Redacta una postulación y propuesta de valor de desarrollo y diseño web para el cliente "${lead.nombre_negocio}".
+Detalles de la oferta/empresa: "${lead.gap_detectado || ''}".
+Nicho del cliente: "${lead.nicho || ''}".
 
-Vi su oferta para ${lead.nicho || 'este proyecto'} y detecté oportunidades de mejora en su presencia digital.
-En JOM Studio nos dedicamos a crear desarrollo creativo web premium de alta gama.
+La propuesta debe ser de parte de Jesús Omar Martínez, Creative Director de JOM Studio (desarrollo creativo web premium, alta gama, e-commerce, WebGL).
+Debe:
+1. Ser corta, directa y persuasiva para canales de chat (máximo 120 palabras).
+2. Explicar específicamente por qué les escribimos basado en su oferta/brecha tecnológica.
+3. Indicar por qué podemos trabajar juntos y cómo nuestra experiencia premium aporta valor real.
+4. Firmar como Jesús Omar Martínez, Creative Director de JOM Studio.
+Usa tono profesional pero atrevido y directo, sin emojis excesivos.`;
 
-¿Cuándo tendrían 10 minutos para una llamada o auditoría rápida de sus canales?
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+      });
 
-Jesús Omar Martínez,
-Creative Director de JOM Studio.`;
+      const pitch = response.text?.trim() || 'Hola, vi su oferta...';
       
-      await page.type(textareaSelector, pitch, { delay: 20 });
+      await page.type(textareaSelector, pitch, { delay: 10 });
       await delay(1000);
       
       // Enviar
