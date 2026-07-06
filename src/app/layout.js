@@ -72,7 +72,13 @@ export default function RootLayout({ children }) {
   return (
     <html lang="es">
       <head>
-        <title>CRM Home | Digital Alchemy</title>
+        <title>JOM Studio | CRM Pro</title>
+        <link rel="icon" href="/logo_jom_square.jpg" sizes="any" />
+        <link rel="apple-touch-icon" href="/logo_jom_square.jpg" />
+        <meta property="og:title" content="JOM Studio | CRM Pro" />
+        <meta property="og:description" content="Portal administrativo y CRM de JOM Studio." />
+        <meta property="og:image" content="https://crmjom.vercel.app/logo_jom_square.jpg" />
+        <meta property="og:url" content="https://crmjom.vercel.app" />
       </head>
       <body>
         <div id="custom-cursor-dot" className="hidden md:block"></div>
