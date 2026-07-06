@@ -6,6 +6,8 @@ import { getAllScraperQueries } from '@/lib/nichos';
 import { appendEnrichedLeads } from '@/lib/leadsStore';
 import { checkPhase2Env } from '@/lib/envCheck';
 import { autoContactComputrabajo } from '@/lib/autoContactComputrabajo';
+import { autoContactLinkedin } from '@/lib/autoContactLinkedin';
+import { getCredentials } from '@/lib/credentials';
 
 const parser = new Parser({
   headers: {
@@ -222,10 +224,8 @@ export async function GET() {
     const added = appendEnrichedLeads(newLeads);
 
     // Disparar auto-aplicación en segundo plano de manera no bloqueante para Computrabajo y LinkedIn
-    const ctUser = process.env.COMPUTRABAJO_USER;
-    const ctPass = process.env.COMPUTRABAJO_PASS;
-    const liUser = process.env.LINKEDIN_USER;
-    const liPass = process.env.LINKEDIN_PASS;
+    const { user: ctUser, pass: ctPass } = getCredentials('computrabajo');
+    const { user: liUser, pass: liPass } = getCredentials('linkedin');
 
     const addedCtLeads = added.filter(l => l.link && l.link.includes('computrabajo'));
     if (ctUser && ctPass && addedCtLeads.length > 0) {

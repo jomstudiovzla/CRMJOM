@@ -44,6 +44,13 @@ const MODULE_LABELS = {
 
 export default function CompanyProfile({ user, leads, onNavigate }) {
   const [systemStatus, setSystemStatus] = useState(null);
+  const [credentials, setCredentials] = useState({
+    computrabajo: { user: '', pass: '' },
+    linkedin: { user: '', pass: '' },
+    fiverr: { user: '', pass: '' },
+  });
+  const [savingCreds, setSavingCreds] = useState(false);
+  const [credsMessage, setCredsMessage] = useState(null);
 
   useEffect(() => {
     fetch('/api/system/status')
@@ -51,6 +58,53 @@ export default function CompanyProfile({ user, leads, onNavigate }) {
       .then((data) => { if (data.success) setSystemStatus(data); })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    fetch('/api/settings/credentials')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) {
+          setCredentials((prev) => ({
+            ...prev,
+            ...data.data,
+          }));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSaveCredentials = async (e) => {
+    e.preventDefault();
+    setSavingCreds(true);
+    setCredsMessage(null);
+    try {
+      const res = await fetch('/api/settings/credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(credentials),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCredsMessage({ type: 'success', text: '✅ Credenciales guardadas y aplicadas al Auto-Postulador.' });
+      } else {
+        setCredsMessage({ type: 'error', text: data.error });
+      }
+    } catch (err) {
+      setCredsMessage({ type: 'error', text: err.message });
+    } finally {
+      setSavingCreds(false);
+    }
+  };
+
+  const handleCredChange = (platform, field, value) => {
+    setCredentials((prev) => ({
+      ...prev,
+      [platform]: {
+        ...prev[platform],
+        [field]: value,
+      },
+    }));
+  };
 
   const tierStats = useMemo(() => {
     const counts = {};
@@ -204,6 +258,115 @@ export default function CompanyProfile({ user, leads, onNavigate }) {
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="company-nichos glass-panel">
+        <h2>🔑 Credenciales de Automatización</h2>
+        <p style={{ opacity: 0.8, fontSize: 13, marginBottom: 16 }}>
+          Configura tus accesos para que las postulaciones automáticas (Computrabajo, LinkedIn, Fiverr) se realicen con tus cuentas sin salir del CRM.
+        </p>
+
+        <form onSubmit={handleSaveCredentials}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '16px' }}>
+            <div className="glass-panel-inner" style={{ padding: '12px', borderRadius: '8px' }}>
+              <h4 style={{ color: '#60a5fa' }}>💼 Computrabajo</h4>
+              <div style={{ marginTop: '8px' }}>
+                <label style={{ fontSize: '11px', display: 'block', opacity: 0.8 }}>Email:</label>
+                <input
+                  type="email"
+                  value={credentials.computrabajo?.user || ''}
+                  onChange={(e) => handleCredChange('computrabajo', 'user', e.target.value)}
+                  style={{ width: '100%', padding: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px', marginTop: '4px' }}
+                />
+              </div>
+              <div style={{ marginTop: '8px' }}>
+                <label style={{ fontSize: '11px', display: 'block', opacity: 0.8 }}>Contraseña:</label>
+                <input
+                  type="password"
+                  value={credentials.computrabajo?.pass || ''}
+                  onChange={(e) => handleCredChange('computrabajo', 'pass', e.target.value)}
+                  style={{ width: '100%', padding: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px', marginTop: '4px' }}
+                />
+              </div>
+            </div>
+
+            <div className="glass-panel-inner" style={{ padding: '12px', borderRadius: '8px' }}>
+              <h4 style={{ color: '#60a5fa' }}>🔗 LinkedIn</h4>
+              <div style={{ marginTop: '8px' }}>
+                <label style={{ fontSize: '11px', display: 'block', opacity: 0.8 }}>Email:</label>
+                <input
+                  type="email"
+                  value={credentials.linkedin?.user || ''}
+                  onChange={(e) => handleCredChange('linkedin', 'user', e.target.value)}
+                  style={{ width: '100%', padding: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px', marginTop: '4px' }}
+                />
+              </div>
+              <div style={{ marginTop: '8px' }}>
+                <label style={{ fontSize: '11px', display: 'block', opacity: 0.8 }}>Contraseña:</label>
+                <input
+                  type="password"
+                  value={credentials.linkedin?.pass || ''}
+                  onChange={(e) => handleCredChange('linkedin', 'pass', e.target.value)}
+                  style={{ width: '100%', padding: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px', marginTop: '4px' }}
+                />
+              </div>
+            </div>
+
+            <div className="glass-panel-inner" style={{ padding: '12px', borderRadius: '8px' }}>
+              <h4 style={{ color: '#60a5fa' }}>🎨 Fiverr</h4>
+              <div style={{ marginTop: '8px' }}>
+                <label style={{ fontSize: '11px', display: 'block', opacity: 0.8 }}>Usuario/Email:</label>
+                <input
+                  type="text"
+                  value={credentials.fiverr?.user || ''}
+                  onChange={(e) => handleCredChange('fiverr', 'user', e.target.value)}
+                  style={{ width: '100%', padding: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px', marginTop: '4px' }}
+                />
+              </div>
+              <div style={{ marginTop: '8px' }}>
+                <label style={{ fontSize: '11px', display: 'block', opacity: 0.8 }}>Contraseña:</label>
+                <input
+                  type="password"
+                  value={credentials.fiverr?.pass || ''}
+                  onChange={(e) => handleCredChange('fiverr', 'pass', e.target.value)}
+                  style={{ width: '100%', padding: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '4px', marginTop: '4px' }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {credsMessage && (
+            <p style={{ 
+              padding: '10px', 
+              borderRadius: '6px', 
+              background: credsMessage.type === 'success' ? 'rgba(74, 222, 128, 0.1)' : 'rgba(248, 113, 113, 0.1)', 
+              color: credsMessage.type === 'success' ? '#4ade80' : '#f87171',
+              fontSize: '13px',
+              border: `1px solid ${credsMessage.type === 'success' ? 'rgba(74, 222, 128, 0.2)' : 'rgba(248, 113, 113, 0.2)'}`,
+              marginTop: '12px'
+            }}>
+              {credsMessage.text}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={savingCreds}
+            className="btn-primary"
+            style={{ 
+              marginTop: '8px', 
+              background: '#2563eb', 
+              borderColor: '#2563eb', 
+              width: '100%', 
+              padding: '10px', 
+              borderRadius: '6px', 
+              fontWeight: 'bold', 
+              cursor: 'pointer' 
+            }}
+          >
+            {savingCreds ? '💾 Guardando...' : '💾 Guardar Credenciales'}
+          </button>
+        </form>
       </section>
     </div>
   );

@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
 import { autoContactComputrabajo } from '@/lib/autoContactComputrabajo';
 import { autoContactLinkedin } from '@/lib/autoContactLinkedin';
 import { mergeAllLeads } from '@/lib/leadsStore';
+import { getCredentials } from '@/lib/credentials';
 
 export const runtime = 'nodejs';
 
@@ -25,13 +25,12 @@ export async function POST(request) {
     const isLinkedin = lead.link && lead.link.includes('linkedin.com');
 
     if (isLinkedin) {
-      const user = process.env.LINKEDIN_USER;
-      const pass = process.env.LINKEDIN_PASS;
+      const { user, pass } = getCredentials('linkedin');
 
       if (!user || !pass) {
         return NextResponse.json({ 
           success: false, 
-          error: 'Por favor, configura LINKEDIN_USER y LINKEDIN_PASS en tu archivo .env.local para automatizar LinkedIn.' 
+          error: 'Por favor, configura tu cuenta de LinkedIn en la pestaña de Empresa del CRM para automatizar postulaciones.' 
         }, { status: 400 });
       }
 
@@ -44,13 +43,12 @@ export async function POST(request) {
         data: result
       });
     } else {
-      const user = process.env.COMPUTRABAJO_USER;
-      const pass = process.env.COMPUTRABAJO_PASS;
+      const { user, pass } = getCredentials('computrabajo');
 
       if (!user || !pass) {
         return NextResponse.json({ 
           success: false, 
-          error: 'Por favor, configura COMPUTRABAJO_USER y COMPUTRABAJO_PASS en tu archivo .env.local para automatizar Computrabajo.' 
+          error: 'Por favor, configura tu cuenta de Computrabajo en la pestaña de Empresa del CRM para automatizar postulaciones.' 
         }, { status: 400 });
       }
 
