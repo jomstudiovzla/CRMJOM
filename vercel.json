@@ -1,11 +1,15 @@
 {
   "crons": [
     {
-      "path": "/api/leads/scrape",
+      "path": "/api/email/sync",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/leads",
       "schedule": "0 */4 * * *"
     },
     {
-      "path": "/api/email/sync",
+      "path": "/api/scraper",
       "schedule": "0 */4 * * *"
     }
   ]

@@ -11,7 +11,7 @@ function needsAiDraft(lead, messages) {
   return (messages || []).some((m) => m.status === 'received' || m.direction === 'inbound');
 }
 
-export default function MailsViewer({ leads, onUpdate }) {
+export default function MailsViewer({ leads, onUpdate, syncTrigger = 0 }) {
   // Folder & Data state
   const [activeFolder, setActiveFolder] = useState('inbox'); // 'inbox', 'important', 'spam', 'leads'
   const [inboxEmails, setInboxEmails] = useState([]);
@@ -79,6 +79,17 @@ export default function MailsViewer({ leads, onUpdate }) {
       setIsSyncing(false);
     }
   }, []);
+
+  // Re-fetch inbox when parent triggers a new sync (every 30s)
+  useEffect(() => {
+    if (syncTrigger > 0) {
+      fetch('/api/email/sync')
+        .then((r) => r.json())
+        .then((data) => { if (data.success) setInboxEmails(data.inbox || []); })
+        .catch(() => {});
+    }
+  }, [syncTrigger]);
+
 
   useEffect(() => {
     let cancelled = false;

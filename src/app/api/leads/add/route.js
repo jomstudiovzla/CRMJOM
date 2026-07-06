@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { updateLeadState, updateLeadGap } from '@/lib/leadsStore';
+import { updateLeadState, updateLeadGap } from '@/lib/leadsStoreFirestore';
 import { fetchWebsiteText, normalizeUrl } from '@/lib/websiteUtils';
 import { auditWebsiteForGap } from '@/lib/gemini';
 
@@ -36,7 +36,7 @@ export async function POST(request) {
       }
     }
 
-    updateLeadState(lead.nombre_negocio, 'nuevo', {
+    await updateLeadState(lead.nombre_negocio, 'nuevo', {
       email: lead.email || '',
       telefono: lead.telefono || '',
       gap_detectado: gapDetectado,
@@ -47,7 +47,7 @@ export async function POST(request) {
     });
 
     if (web || gapDetectado) {
-      updateLeadGap(lead.nombre_negocio, {
+      await updateLeadGap(lead.nombre_negocio, {
         gap_detectado: gapDetectado,
         web,
         solucion_jom: solucionJom,

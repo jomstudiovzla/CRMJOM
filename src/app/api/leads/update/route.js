@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { updateLeadState } from '@/lib/leadsStore';
+import { updateLeadState } from '@/lib/leadsStoreFirestore';
 
 export async function POST(request) {
   try {
@@ -12,7 +12,7 @@ export async function POST(request) {
       );
     }
 
-    const updated = updateLeadState(nombre_negocio, nuevo_estado);
+    const updated = await updateLeadState(nombre_negocio, nuevo_estado);
 
     if (!updated) {
       return NextResponse.json({ success: false, error: 'Lead no encontrado' }, { status: 404 });
