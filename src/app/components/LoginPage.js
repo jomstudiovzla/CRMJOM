@@ -191,16 +191,7 @@ export default function LoginPage() {
           <div className="login-error" style={{ marginTop: '10px' }}>{localError}</div>
         )}
 
-        {setupHints.length > 0 && (
-          <div className="login-setup-hints">
-            <strong>Checklist Vercel / Firebase:</strong>
-            <ul>
-              {setupHints.map((hint) => (
-                <li key={hint}>{hint}</li>
-              ))}
-            </ul>
-          </div>
-        )}
+        {/* Checklist UI removed */}
 
         <button
           className="google-btn"

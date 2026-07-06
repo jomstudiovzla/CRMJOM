@@ -40,9 +40,7 @@ function buildHints({ firebaseReady, sessionReady, appUrl, requestHost }) {
     hints.push(`En producción define NEXT_PUBLIC_APP_URL=https://${PRODUCTION_HOST}`);
   }
   const host = requestHost || appUrl.replace(/^https?:\/\//, '').split(':')[0];
-  if (host && host !== 'localhost' && !host.startsWith('127.0.0.1')) {
-    hints.push(`Firebase → Authorized domains: añade "${host}"`);
-  }
+  // Eliminado el hint de dominio autorizado por petición del usuario
   if (host && host.endsWith('.vercel.app') && host !== PRODUCTION_HOST) {
     hints.push(`Usa siempre https://${PRODUCTION_HOST}/login (los previews de Vercel no sirven para Google)`);
   }
