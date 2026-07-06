@@ -116,17 +116,7 @@ export default function LoginPage() {
       return;
     }
 
-    const useRedirect =
-      typeof window !== 'undefined' &&
-      (window.location.hostname.includes('vercel.app') ||
-        window.location.hostname !== 'localhost');
-
     try {
-      if (useRedirect) {
-        await signInWithRedirect(auth, googleProvider);
-        return;
-      }
-
       const result = await signInWithPopup(auth, googleProvider);
       await handleGoogleUser(result.user, setLocalError, setLoading);
     } catch (err) {
