@@ -1,9 +1,9 @@
 /**
- * autoContactLinkedin.js
- * Bot de postulación automática para LinkedIn Easy Apply
+ * autoContactGeneric.js
+ * Bot de postulación automática genérico para otras plataformas
+ * (Upwork, Fiverr, Workana, Freelancer, Bumeran)
  *
- * FLUJO: answerEngine (reglas) → Gemini (fallback) → respuesta segura
- * REGLA: Nunca inventar datos. Usar Chrome compartido (no abrir nuevo).
+ * Utiliza answerEngine y Gemini (fallback) para llenar formularios.
  */
 
 import { openTab, closeTab, ensurePlatformSession } from './browserManager';
@@ -16,11 +16,7 @@ import { getAnswer, matchOption, detectLanguage } from './answerEngine';
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 const ai    = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   RESPONDER PREGUNTA — mismo flujo que Computrabajo
-   ═══════════════════════════════════════════════════════════════════════════ */
 async function answeredByGemini(question, fieldType = 'text', options = []) {
-  // Motor propio primero
   const isLong = fieldType === 'textarea';
 
   if (!isLong) {
@@ -31,7 +27,6 @@ async function answeredByGemini(question, fieldType = 'text', options = []) {
     }
   }
 
-  // Gemini para lo no cubierto
   const lng    = detectLanguage(question);
   const optHint = options.length ? `\nOptions: ${options.join(' | ')}` : '';
   const prompt = lng === 'en'
@@ -61,12 +56,11 @@ Responde SOLO con el valor, sin comillas ni explicación:`;
   try {
     const r = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
     const a = r.text?.trim() || '';
-    if (a) { console.log(`[LI Bot] 🤖 Gemini: "${question.slice(0,50)}" → "${a.slice(0,60)}"`); return a; }
+    if (a) { console.log(`[Bot] 🤖 Gemini: "${question.slice(0,50)}" → "${a.slice(0,60)}"`); return a; }
   } catch (e) {
-    console.warn('[LI Bot] Gemini no disponible:', e.message?.slice(0, 60));
+    console.warn('[Bot] Gemini no disponible:', e.message?.slice(0, 60));
   }
 
-  // Fallback sin IA
   const q = question.toLowerCase();
   if (isLong)                                                   return 'Disponible. Por favor, consultar mi perfil para más detalles.';
   if (q.includes('años') || q.includes('years'))               return '3';
@@ -75,16 +69,13 @@ Responde SOLO con el valor, sin comillas ni explicación:`;
   if (q.includes('ciudad') || q.includes('city'))              return PROFILE.ciudad;
   if (q.includes('nombre') || q.includes('name'))              return PROFILE.nombre_completo;
   if (q.includes('presencial') || q.includes('vehículo') ||
-      q.includes('c2') || q.includes('advanced english') ||
+      q.includes('c2') || q.includes('advanced') ||
       q.includes('university') || q.includes('universitario'))  return 'No';
   if (q.includes('remoto') || q.includes('remote'))            return 'Sí';
   return '';
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   LLENAR FORMULARIO LINKEDIN EASY APPLY
-   ═══════════════════════════════════════════════════════════════════════════ */
-async function fillLinkedInForm(page) {
+async function fillGenericForm(page) {
   let filled = 0;
 
   const getLabel = async (el) => page.evaluate((node) => {
@@ -93,15 +84,15 @@ async function fillLinkedInForm(page) {
       const lbl = document.querySelector(`label[for="${id}"]`);
       if (lbl) return lbl.textContent.trim();
     }
-    const parent = node.closest('.jobs-easy-apply-form-section__group, .fb-dash-form-element, .artdeco-text-input, .jobs-easy-apply-form-element, div');
+    const parent = node.closest('div, fieldset, section');
     if (parent) {
-      const lbl = parent.querySelector('label, legend, .jobs-easy-apply-form-section__label, span.t-bold');
+      const lbl = parent.querySelector('label, legend, span.bold, h3, h4');
       if (lbl && lbl !== node) return lbl.textContent.trim();
     }
     return node.placeholder || node.name || node.id || '';
   }, el);
 
-  // ── Inputs ───────────────────────────────────────────────────────────────
+  // Inputs
   const inputs = await page.$$('input[type="text"], input[type="number"], input[type="tel"], input[type="email"]');
   for (const el of inputs) {
     try {
@@ -122,17 +113,15 @@ async function fillLinkedInForm(page) {
       await el.type(String(finalAnswer), { delay: 20 });
       filled++;
       await delay(150);
-    } catch (e) {
-      if (e.message?.includes('context') || e.message?.includes('destroyed')) throw e;
-    }
+    } catch (e) {}
   }
 
-  // ── Selects ───────────────────────────────────────────────────────────────
+  // Selects
   const selects = await page.$$('select');
   for (const el of selects) {
     try {
       const current = await page.evaluate(n => n.value, el);
-      if (current && current !== '' && current !== 'Select an option') continue;
+      if (current && current !== '') continue;
       const label   = await getLabel(el);
       const options = await page.evaluate(n =>
         Array.from(n.options).filter(o => o.value && o.value !== '').map(o => o.text.trim())
@@ -152,7 +141,7 @@ async function fillLinkedInForm(page) {
             return hit.text;
           }
         }
-        const firstValid = opts.find(o => o.value && o.value !== 'Select an option' && o.value !== '');
+        const firstValid = opts.find(o => o.value && o.value !== '0' && o.value !== '');
         if (firstValid) {
           node.value = firstValid.value;
           node.dispatchEvent(new Event('change', { bubbles: true }));
@@ -161,80 +150,17 @@ async function fillLinkedInForm(page) {
         return null;
       }, el, matched);
       if (set) { filled++; await delay(250); }
-    } catch (e) {
-      if (e.message?.includes('context') || e.message?.includes('destroyed')) throw e;
-    }
+    } catch (e) {}
   }
 
-  // ── Radios ────────────────────────────────────────────────────────────────
-  const radioGroups = await page.evaluate(() => {
-    const g = {};
-    document.querySelectorAll('input[type="radio"]').forEach(r => {
-      if (!g[r.name]) g[r.name] = [];
-      g[r.name].push({
-        value: r.value,
-        label: r.labels?.[0]?.textContent?.trim() || r.nextElementSibling?.textContent?.trim() || r.value,
-        checked: r.checked,
-      });
-    });
-    return g;
-  });
-
-  for (const [name, radios] of Object.entries(radioGroups)) {
-    try {
-      if (radios.some(r => r.checked)) continue;
-      const groupLabel = await page.evaluate((nm) => {
-        const el = document.querySelector(`input[name="${nm}"]`);
-        if (!el) return nm;
-        const p = el.closest('fieldset, .jobs-easy-apply-form-section__group, div[class*="field"]');
-        if (p) {
-          const lg = p.querySelector('legend, .jobs-easy-apply-form-section__label, span.t-bold, label');
-          if (lg) return lg.textContent.trim();
-        }
-        return nm;
-      }, name);
-
-      const options = radios.map(r => r.label);
-      const answer  = await answeredByGemini(groupLabel, 'radio', options);
-
-      const clicked = await page.evaluate((nm, ans) => {
-        const inputs = Array.from(document.querySelectorAll(`input[name="${nm}"]`));
-        const a = (ans || '').toLowerCase().trim();
-        const exact = inputs.find(i => {
-          const t = (i.labels?.[0]?.textContent || i.nextElementSibling?.textContent || '').toLowerCase().trim();
-          return t === a || t.includes(a) || a.includes(t);
-        });
-        if (exact) { exact.click(); return true; }
-        if (a === 'no' || a.startsWith('no ')) {
-          const no = inputs.find(i => (i.labels?.[0]?.textContent || i.nextElementSibling?.textContent || '').toLowerCase().trim() === 'no');
-          if (no) { no.click(); return true; }
-        }
-        if (a === 'sí' || a === 'si' || a === 'yes') {
-          const yes = inputs.find(i => {
-            const t = (i.labels?.[0]?.textContent || i.nextElementSibling?.textContent || '').toLowerCase().trim();
-            return t === 'sí' || t === 'si' || t === 'yes';
-          });
-          if (yes) { yes.click(); return true; }
-        }
-        if (inputs.length > 0) { inputs[0].click(); return true; }
-        return false;
-      }, name, answer);
-
-      if (clicked) filled++;
-      await delay(200);
-    } catch (e) {
-      if (e.message?.includes('context') || e.message?.includes('destroyed')) throw e;
-    }
-  }
-
-  // ── Textareas ─────────────────────────────────────────────────────────────
+  // Textareas
   const textareas = await page.$$('textarea');
   for (const el of textareas) {
     try {
       const val = await page.evaluate(n => n.value, el);
       if (val?.trim().length > 30) continue;
       const label  = await getLabel(el);
-      const answer = await answeredByGemini(label || 'Carta de presentación', 'textarea');
+      const answer = await answeredByGemini(label || 'Carta de presentación / Proposal', 'textarea');
       let finalAnswer = answer;
       if (!finalAnswer) finalAnswer = 'Desarrollador Web y Director Creativo con 3 años de experiencia en el sector. Disponible inmediatamente.';
       await el.click({ clickCount: 3 });
@@ -244,57 +170,37 @@ async function fillLinkedInForm(page) {
       }
       filled++;
       await delay(350);
-    } catch (e) {
-      if (e.message?.includes('context') || e.message?.includes('destroyed')) throw e;
-    }
+    } catch (e) {}
   }
 
-  console.log(`[LI Bot] ✅ ${filled} campo(s) llenados`);
+  console.log(`[Bot] ✅ ${filled} campo(s) llenados`);
   return filled;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   FUNCIÓN PRINCIPAL
-   ═══════════════════════════════════════════════════════════════════════════ */
-export async function autoContactLinkedin(lead, _u, _p, headlessOverride = false) {
+export async function autoContactGeneric(lead, platformName, applySelectors) {
   if (!lead.link) throw new Error('El lead no tiene un enlace de postulación.');
 
-  const { page } = await openTab(null, !headlessOverride);
+  const { page } = await openTab(null, true);
 
   try {
-    // ── Verificar sesión con Google ────────────────────────────────────────
-    const loggedIn = await ensurePlatformSession(page, 'linkedin');
+    const loggedIn = await ensurePlatformSession(page, platformName);
     if (!loggedIn) {
-      throw new Error(
-        'No se pudo iniciar sesión en LinkedIn. ' +
-        'Ve al CRM → Mails → "Abrir con Google" para activar la sesión de LinkedIn.'
-      );
+      throw new Error(`No se pudo iniciar sesión en ${platformName}. Abre la plataforma manualmente desde Mailbox primero.`);
     }
-    console.log('[LI Bot] ✅ Sesión LinkedIn activa');
+    console.log(`[${platformName.toUpperCase()}] ✅ Sesión activa`);
 
-    // ── Navegar a la oferta ────────────────────────────────────────────────
-    console.log(`[LI Bot] → ${lead.link}`);
+    console.log(`[${platformName.toUpperCase()}] → ${lead.link}`);
     await page.goto(lead.link, { waitUntil: 'networkidle2', timeout: 20000 });
-    await delay(2500);
+    await delay(3500);
 
-    // ── Extraer info de la oferta ──────────────────────────────────────────
     const jobInfo = await page.evaluate(() => ({
-      puesto:  document.querySelector('h1.job-details-jobs-unified-top-card__job-title, h1.topcard__title, h1')?.textContent?.trim() || document.title.split('|')[0].trim(),
-      empresa: document.querySelector('.topcard__org-name-link, .job-details-jobs-unified-top-card__company-name, .topcard__flavor a')?.textContent?.trim() || 'Sin especificar',
-    })).catch(() => ({ puesto: lead.nombre_negocio || 'Oferta LinkedIn', empresa: 'Sin especificar' }));
+      puesto:  document.querySelector('h1')?.textContent?.trim() || document.title.split('|')[0].trim(),
+      empresa: 'Sin especificar',
+    })).catch(() => ({ puesto: lead.nombre_negocio || 'Oferta', empresa: 'Sin especificar' }));
 
-    // ── Buscar botón Easy Apply ─────────────────────────────────────────────
-    const APPLY_SELECTORS = [
-      'button.jobs-apply-button',
-      '.jobs-apply-button',
-      'button[aria-label*="Easy Apply"]',
-      'button[aria-label*="Solicitud sencilla"]',
-      'button[data-control-name*="jobdetails_topcard_inapply"]',
-      '.jobs-s-apply button',
-      '.job-details-jobs-unified-top-card__container--two-pane .jobs-apply-button',
-    ];
+    // Buscar botón de aplicar
     let applied = false;
-    for (const sel of APPLY_SELECTORS) {
+    for (const sel of applySelectors) {
       const btn = await page.$(sel);
       if (btn) {
         const vis = await page.evaluate(el => {
@@ -304,54 +210,52 @@ export async function autoContactLinkedin(lead, _u, _p, headlessOverride = false
         if (vis) { await btn.click(); applied = true; break; }
       }
     }
-    // Buscar por texto
     if (!applied) {
-      const btns = await page.$$('button');
+      const btns = await page.$$('button, a.btn, a.button');
       for (const btn of btns) {
         const t = await page.evaluate(el => (el.textContent || el.getAttribute('aria-label') || '').toLowerCase(), btn);
-        if (t.includes('easy apply') || t.includes('solicitud sencilla') || t.includes('aplicar fácil')) {
+        if (t.includes('apply') || t.includes('postular') || t.includes('proposal') || t.includes('offer') || t.includes('bid')) {
           const vis = await page.evaluate(el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; }, btn);
           if (vis) { await btn.click(); applied = true; break; }
         }
       }
     }
+    
     if (!applied) {
-      // No hay Easy Apply → registrar como "requiere web externa" y salir
-      console.log('[LI Bot] ⚠️ No hay Easy Apply — oferta requiere web externa');
+      console.log(`[${platformName.toUpperCase()}] ⚠️ No se encontró botón de aplicación automático`);
       addPostulacion({
-        plataforma: 'linkedin',
+        plataforma: platformName,
         puesto:     jobInfo.puesto,
         empresa:    jobInfo.empresa,
         link:       lead.link,
         estado:     'pendiente',
-        notas:      'Sin botón Easy Apply — aplicar manualmente en web de la empresa',
+        notas:      'No se pudo encontrar botón para aplicar, aplicar manualmente',
       });
       if (global.io) global.io.emit('postulaciones_updated');
-      return { success: false, message: 'No tiene Easy Apply. Abierta para aplicar manualmente.' };
+      return { success: false, message: 'Requiere aplicación manual.' };
     }
 
-    await delay(2500);
+    await delay(3500);
 
-    // ── Formulario multi-paso ──────────────────────────────────────────────
     let steps     = 0;
     let submitted = false;
 
-    while (steps < 12 && !submitted) {
+    while (steps < 6 && !submitted) {
       steps++;
-      await delay(1200);
+      await delay(1500);
 
-      try { await fillLinkedInForm(page); } catch (e) {
+      try { await fillGenericForm(page); } catch (e) {
         if (e.message?.includes('context') || e.message?.includes('destroyed')) { submitted = true; break; }
       }
 
-      await delay(600);
+      await delay(1000);
 
       let action = 'none';
       try {
         action = await page.evaluate(() => {
-          const SUBMIT = ['enviar solicitud','submit application','review','revisar','enviar','submit'];
-          const NEXT   = ['siguiente','next','continuar','continue'];
-          const btns   = Array.from(document.querySelectorAll('button[aria-label], footer button, .artdeco-modal button')).filter(el => {
+          const SUBMIT = ['enviar', 'submit', 'send', 'place bid'];
+          const NEXT   = ['siguiente', 'next', 'continuar', 'continue'];
+          const btns   = Array.from(document.querySelectorAll('button:not([disabled])')).filter(el => {
             const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0;
           });
           for (const btn of btns) {
@@ -368,28 +272,26 @@ export async function autoContactLinkedin(lead, _u, _p, headlessOverride = false
         if (e.message?.includes('context') || e.message?.includes('destroyed')) { submitted = true; break; }
       }
 
-      console.log(`[LI Bot] Paso ${steps}: "${action}"`);
+      console.log(`[${platformName.toUpperCase()}] Paso ${steps}: "${action}"`);
       if (action === 'submitted') {
-        await delay(3000);
+        await delay(3500);
         submitted = true; break;
       }
       if (action === 'none') break;
-      await delay(2000);
     }
 
-    // ── Registrar postulación ──────────────────────────────────────────────
     addPostulacion({
-      plataforma: 'linkedin',
+      plataforma: platformName,
       puesto:     jobInfo.puesto,
       empresa:    jobInfo.empresa,
       link:       lead.link,
       estado:     submitted ? 'enviada' : 'pendiente',
-      notas:      submitted ? 'LinkedIn Easy Apply completada' : 'Revisar manualmente',
+      notas:      submitted ? 'Postulación completada' : 'Revisar manualmente',
     });
 
     await updateLeadState(lead.nombre_negocio || jobInfo.empresa, 'contactado', {
       fecha_contacto: new Date().toISOString(),
-      origen:         'LinkedIn Easy Apply',
+      origen:         `Auto-Bot ${platformName}`,
     });
 
     if (global.io) {
@@ -397,7 +299,7 @@ export async function autoContactLinkedin(lead, _u, _p, headlessOverride = false
       global.io.emit('postulaciones_updated');
     }
 
-    console.log(`[LI Bot] 🎉 ${jobInfo.puesto} @ ${jobInfo.empresa} → ${submitted ? 'enviado' : 'pendiente'}`);
+    console.log(`[${platformName.toUpperCase()}] 🎉 Postulación ${submitted ? 'enviado' : 'pendiente'}`);
     return { success: true, submitted, jobInfo };
 
   } finally {

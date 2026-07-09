@@ -8,10 +8,11 @@ import MailsViewer from './components/MailsViewer';
 import PlaybookViewer from './components/PlaybookViewer';
 import CompanyProfile from './components/CompanyProfile';
 import UserMenu from './components/UserMenu';
+import PostulacionesPanel from './components/PostulacionesPanel';
 import { io } from 'socket.io-client';
 import styles from './page.module.css';
 
-const VALID_TABS = new Set(['company', 'leads', 'mails', 'dashboard', 'playbook']);
+const VALID_TABS = new Set(['company', 'leads', 'mails', 'dashboard', 'playbook', 'postulaciones']);
 
 const SESSION_POLL_MS = 5 * 60 * 1000;
 
@@ -107,6 +108,12 @@ export default function Home() {
       fetchLeads();
     });
 
+    socket.on('postulaciones_updated', () => {
+      // PostulacionesPanel escucha SSE directamente — no hace falta nada aquí
+      // pero lo capturamos por si acaso
+      console.log('[Socket.io] postulaciones_updated');
+    });
+
     sessionTimerRef.current = setInterval(fetchSession, SESSION_POLL_MS);
 
     return () => {
@@ -125,11 +132,12 @@ export default function Home() {
   };
 
   const tabs = [
-    { id: 'company',   label: '🏢 Empresa'   },
-    { id: 'leads',     label: '👥 Leads'     },
-    { id: 'mails',     label: '📬 Mails'     },
-    { id: 'dashboard', label: '📊 Dashboard' },
-    { id: 'playbook',  label: '📚 Playbook'  },
+    { id: 'company',       label: '🏢 Empresa'        },
+    { id: 'leads',         label: '👥 Leads'           },
+    { id: 'mails',         label: '📬 Mails'           },
+    { id: 'postulaciones', label: '📋 Postulaciones'   },
+    { id: 'dashboard',     label: '📊 Dashboard'       },
+    { id: 'playbook',      label: '📚 Playbook'        },
   ];
 
   return (
@@ -167,11 +175,12 @@ export default function Home() {
 
         {(!loading || activeTab !== 'company') && (
           <>
-            {activeTab === 'company'   && <CompanyProfile user={user} leads={leads} onNavigate={navigate} />}
-            {activeTab === 'leads'     && <LeadManager leads={leads} onUpdate={fetchLeads} />}
-            {activeTab === 'mails'     && <MailsViewer leads={leads} onUpdate={fetchLeads} syncTrigger={emailSyncTs} />}
-            {activeTab === 'dashboard' && <Dashboard leads={leads} />}
-            {activeTab === 'playbook'  && <PlaybookViewer />}
+            {activeTab === 'company'       && <CompanyProfile user={user} leads={leads} onNavigate={navigate} />}
+            {activeTab === 'leads'         && <LeadManager leads={leads} onUpdate={fetchLeads} />}
+            {activeTab === 'mails'         && <MailsViewer leads={leads} onUpdate={fetchLeads} syncTrigger={emailSyncTs} />}
+            {activeTab === 'postulaciones' && <PostulacionesPanel />}
+            {activeTab === 'dashboard'     && <Dashboard leads={leads} />}
+            {activeTab === 'playbook'      && <PlaybookViewer />}
           </>
         )}
       </div>

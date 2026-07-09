@@ -44,7 +44,7 @@ export default function MailsViewer({ leads, onUpdate, syncTrigger = 0 }) {
   const [auditPreview, setAuditPreview] = useState(null);
 
   // Session / Chrome compartido
-  const [sessionStatus, setSessionStatus] = useState({ running: false, openTabs: 0 });
+  const [sessionStatus, setSessionStatus] = useState({ running: false, openTabs: 0, sessions: {} });
   const [sessionLoading, setSessionLoading] = useState(false);
 
   const fetchSessionStatus = useCallback(async () => {
@@ -56,20 +56,37 @@ export default function MailsViewer({ leads, onUpdate, syncTrigger = 0 }) {
 
   const openAllSessions = useCallback(async () => {
     setSessionLoading(true);
+    setFeedback({ type: 'info', msg: '⏳ Abriendo Chrome con tu cuenta Google...' });
     try {
-      const r = await fetch('/api/session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'open' }) });
+      const r = await fetch('/api/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'open' }),
+      });
       const data = await r.json();
       if (data.success) {
+        const ctOk = data.sessions?.computrabajo;
         setTimeout(fetchSessionStatus, 3000);
-        setFeedback({ type: 'success', msg: '✅ Chrome abierto con todas las plataformas' });
+        setFeedback({
+          type: 'success',
+          msg: `✅ Chrome abierto con Google${ctOk ? ' · Computrabajo: logueado ✓' : ' · Computrabajo: inicia sesión en la pestaña que abrió'}`,
+        });
+      } else {
+        setFeedback({ type: 'error', msg: '❌ ' + (data.error || 'Error abriendo Chrome') });
       }
-    } catch (e) { setFeedback({ type: 'error', msg: 'Error abriendo Chrome: ' + e.message }); }
+    } catch (e) {
+      setFeedback({ type: 'error', msg: 'Error abriendo Chrome: ' + e.message });
+    }
     setSessionLoading(false);
   }, [fetchSessionStatus]);
 
   const openOnePlatform = useCallback(async (platform) => {
     try {
-      await fetch('/api/session', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'open-platform', platform }) });
+      await fetch('/api/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'open-platform', platform }),
+      });
       setTimeout(fetchSessionStatus, 2000);
     } catch {}
   }, [fetchSessionStatus]);
@@ -131,46 +148,7 @@ export default function MailsViewer({ leads, onUpdate, syncTrigger = 0 }) {
 
 
 
-  useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const threadsRes = await fetch('/api/email/threads');
-        const threadsData = await threadsRes.json();
-        if (!cancelled && threadsData.success) {
-          setThreads(threadsData.data.sort((a, b) => {
-            const aTime = a.messages?.[0]?.sentAt ? new Date(a.messages[0].sentAt) : new Date(0);
-            const bTime = b.messages?.[0]?.sentAt ? new Date(b.messages[0].sentAt) : new Date(0);
-            return bTime - aTime;
-          }));
-        }
-      } catch (e) {
-        if (!cancelled) console.error('Error threads:', e);
-      }
-
-      try {
-        const statusRes = await fetch('/api/email/status');
-        const statusData = await statusRes.json();
-        if (!cancelled && statusData.success) setEmailStatus(statusData);
-      } catch (e) {
-        if (!cancelled) console.error('Error status:', e);
-      }
-
-      if (!cancelled) setIsSyncing(true);
-      try {
-        const syncRes = await fetch('/api/email/sync');
-        const syncData = await syncRes.json();
-        if (!cancelled && syncData.success) setInboxEmails(syncData.inbox || []);
-      } catch (e) {
-        if (!cancelled) console.error('Error sync:', e);
-      } finally {
-        if (!cancelled) setIsSyncing(false);
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, []);
+  // (Carga inicial eliminada — se hace via fetchData() abajo)
 
   const handleManualSync = () => {
     setIsSyncing(true);
@@ -732,22 +710,48 @@ export default function MailsViewer({ leads, onUpdate, syncTrigger = 0 }) {
         {/* ── PANEL DE SESIONES EN TIEMPO REAL ─────────────────────── */}
         <div className="session-panel">
           <div className="session-panel-header">
-            <span>🌐 Sesiones</span>
-            <span className={`session-dot ${sessionStatus.running ? 'online' : 'offline'}`} title={sessionStatus.running ? `Chrome activo · ${sessionStatus.openTabs} pestañas` : 'Chrome desconectado'} />
+            <span>🔐 Sesión Google</span>
+            <span
+              className={`session-dot ${sessionStatus.running ? 'online' : 'offline'}`}
+              title={sessionStatus.running
+                ? `Chrome activo · ${sessionStatus.openTabs} pestañas`
+                : 'Chrome no iniciado'}
+            />
           </div>
           <button
             className="session-open-btn"
             onClick={openAllSessions}
             disabled={sessionLoading}
           >
-            {sessionLoading ? '⏳ Abriendo...' : '🚀 Abrir todas las sesiones'}
+            {sessionLoading ? '⏳ Abriendo con Google...' : '🚀 Abrir con Google'}
           </button>
           <div className="session-platforms">
-            {[['computrabajo','💼','Computrabajo'],['linkedin','🔗','LinkedIn'],['gmail','📧','Gmail'],['whatsapp','💬','WhatsApp']].map(([id, icon, label]) => (
-              <button key={id} className="session-platform-btn" onClick={() => openOnePlatform(id)} title={`Abrir ${label}`}>
-                {icon} {label}
-              </button>
-            ))}
+            {[
+              ['computrabajo', '💼', 'Computrabajo'],
+              ['linkedin',     '🔗', 'LinkedIn'],
+              ['upwork',       '🆙', 'Upwork'],
+              ['fiverr',       '🟢', 'Fiverr'],
+              ['workana',      '🔵', 'Workana'],
+              ['freelancer',   '🌐', 'Freelancer'],
+              ['bumeran',      '📋', 'Bumeran'],
+              ['gmail',        '📧', 'Gmail'],
+            ].map(([id, icon, label]) => {
+              const isLoggedIn = sessionStatus.sessions?.[id];
+              return (
+                <button
+                  key={id}
+                  className={`session-platform-btn ${isLoggedIn ? 'logged-in' : ''}`}
+                  onClick={() => openOnePlatform(id)}
+                  title={isLoggedIn ? `${label}: sesión activa ✓` : `Abrir ${label}`}
+                >
+                  <span className="platform-icon">{icon}</span>
+                  <span className="platform-name">{label}</span>
+                  {isLoggedIn
+                    ? <span className="session-check" title="Sesión activa">✓</span>
+                    : <span className="session-x" title="Sin sesión">○</span>}
+                </button>
+              );
+            })}
           </div>
         </div>
         {/* ── FIN PANEL ─────────────────────────────────────────────── */}
