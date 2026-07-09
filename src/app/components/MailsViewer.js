@@ -543,7 +543,13 @@ export default function MailsViewer({ leads, onUpdate, syncTrigger = 0 }) {
                     <span className="msg-subj">{msg.subject}</span>
                     <span className="msg-time">{new Date(msg.sentAt).toLocaleString()}</span>
                   </div>
-                  <pre className="msg-content">{msg.body}</pre>
+                  <div className="msg-content">
+                    {/<[a-z][\s\S]*>/i.test(msg.body || '') ? (
+                      <div dangerouslySetInnerHTML={{ __html: msg.body }} />
+                    ) : (
+                      <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{msg.body}</pre>
+                    )}
+                  </div>
                   <span className={`status-badge ${msg.status}`}>{msg.status}</span>
                 </div>
               ))}
@@ -675,7 +681,11 @@ export default function MailsViewer({ leads, onUpdate, syncTrigger = 0 }) {
             </div>
           )}
 
-          {email.body}
+          {/<[a-z][\s\S]*>/i.test(email.body || '') ? (
+            <div dangerouslySetInnerHTML={{ __html: email.body }} />
+          ) : (
+            <div style={{ whiteSpace: 'pre-wrap' }}>{email.body}</div>
+          )}
         </div>
       </>
     );
