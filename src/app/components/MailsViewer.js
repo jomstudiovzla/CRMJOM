@@ -140,6 +140,7 @@ export default function MailsViewer({ leads, onUpdate, syncTrigger = 0 }) {
 
   // Polling de estado del Chrome compartido cada 10s
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchSessionStatus();
     const interval = setInterval(fetchSessionStatus, 10000);
     return () => clearInterval(interval);

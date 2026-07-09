@@ -8,40 +8,43 @@ export default function WhatsAppModal({ isOpen, onClose, lead, onSent }) {
   const [feedback, setFeedback] = useState(null);
 
   useEffect(() => {
+    const generateDraft = async () => {
+      if (!lead) return;
+      setLoading(true);
+      setFeedback(null);
+      try {
+        const res = await fetch('/api/whatsapp/draft', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nombre_negocio: lead.nombre_negocio,
+            lead: { ...lead, telefono: lead.telefono || '' }
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          setDraft(data.data.body);
+        } else {
+          setFeedback({ type: 'error', text: data.error });
+        }
+      } catch (error) {
+        setFeedback({ type: 'error', text: error.message });
+      } finally {
+        setLoading(false);
+      }
+    };
+
     if (lead) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTelefono(lead.telefono || '');
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDraft('');
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFeedback(null);
       // Auto-generate draft on open if possible
       generateDraft();
     }
   }, [lead]);
-
-  const generateDraft = async () => {
-    if (!lead) return;
-    setLoading(true);
-    setFeedback(null);
-    try {
-      const res = await fetch('/api/whatsapp/draft', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nombre_negocio: lead.nombre_negocio,
-          lead: { ...lead, telefono }
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setDraft(data.data.body);
-      } else {
-        setFeedback({ type: 'error', text: data.error });
-      }
-    } catch (error) {
-      setFeedback({ type: 'error', text: error.message });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (!isOpen || !lead) return null;
 

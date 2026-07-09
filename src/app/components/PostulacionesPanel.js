@@ -69,6 +69,7 @@ export default function PostulacionesPanel() {
     }
   }, []);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadAll(); }, [loadAll]);
 
   // ── SSE en tiempo real ────────────────────────────────────────────────────
